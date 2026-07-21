@@ -2429,6 +2429,16 @@ def stream_gemini_web(
     # ── State / Prompt Extraction ──────────────────────────────────────────
     manifest = _format_web_tool_manifest(tool_schemas, config, messages)
     last_user_msg = _consolidate_web_history(messages, manifest)
+    # Gemini Web has no separate system-message field. Re-inject the system
+    # contract on every request, including continuation turns, so Gemini knows
+    # it is Dulus and follows the tool-call protocol.
+    if system:
+        last_user_msg = (
+            "[DULUS SYSTEM INSTRUCTIONS]\n"
+            + system.strip()
+            + "\n[END DULUS SYSTEM INSTRUCTIONS]\n\n"
+            + last_user_msg
+        )
 
     # ── Payload Building ───────────────────────────────────────────────────
     last_req = auth_data.get("intercepted_requests", [{}])[-1]
@@ -3128,13 +3138,13 @@ def stream_qwen_web(
     # + tool results — re-sending the system prompt and tool manifest every
     # turn wastes 1-2K tokens per call.
     is_first_turn = not parent_id
-    if is_first_turn:
-        manifest = _format_web_tool_manifest(tool_schemas, config, messages)
-        last_user_msg = _consolidate_web_history(messages, manifest)
-        if system:
-            last_user_msg = f"[System]: {system}\n\n{last_user_msg}"
-    else:
-        last_user_msg = _consolidate_web_history(messages, "")
+    manifest = _format_web_tool_manifest(tool_schemas, config, messages) if is_first_turn else ""
+    last_user_msg = _consolidate_web_history(messages, manifest)
+    # Qwen Web also has no independent system-message channel. Keep the
+    # system contract on continuation turns; otherwise the second request can
+    # lose the agent identity and tool instructions.
+    if system:
+        last_user_msg = f"[DULUS SYSTEM INSTRUCTIONS]\n{system}\n[END DULUS SYSTEM INSTRUCTIONS]\n\n{last_user_msg}"
 
     fid = str(uuid.uuid4())
     next_child_id = str(uuid.uuid4())
