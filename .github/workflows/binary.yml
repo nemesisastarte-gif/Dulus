@@ -1,0 +1,80 @@
+name: build-binaries
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: dulus-linux-x64
+            binary: dulus
+          - os: windows-latest
+            artifact: dulus-windows-x64
+            binary: dulus.exe
+          - os: macos-latest
+            artifact: dulus-macos-arm64
+            binary: dulus
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m pip install -e . --no-cache-dir
+
+      - name: Build executable
+        shell: bash
+        run: |
+          pyinstaller --clean --noconfirm --onefile --name dulus dulus.py
+          test -f "dist/${{ matrix.binary }}"
+
+      - name: Package binary
+        shell: bash
+        run: |
+          mkdir -p package
+          cp "dist/${{ matrix.binary }}" "package/${{ matrix.binary }}"
+          cp LICENSE package/LICENSE
+          cp README.md package/README.md
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            7z a "${{ matrix.artifact }}.zip" ./package/*
+          else
+            tar -czf "${{ matrix.artifact }}.tar.gz" -C package .
+          fi
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+
+      - name: Upload release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+          generate_release_notes: true

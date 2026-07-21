@@ -34,6 +34,7 @@ Slash commands in REPL:
   /help       Show this help
   /clear      Clear conversation
   /model [m]  Show or set model
+  /provider   List, configure, switch, and test AI providers
   /config     Show config / set key=value
   /save [f]   Save session to file
   /load [f]   Load session from file
@@ -1012,6 +1013,116 @@ def cmd_help(_args: str, _state, config) -> bool:
     print()
     _render_toggle_footer(config)
     return True
+
+def cmd_provider(args: str, _state, config) -> bool:
+    """Manage model providers without exposing API keys.
+
+    Usage:
+      /provider                 show active provider and configured providers
+      /provider list             list providers and suggested models
+      /provider use nvidia [m]  switch provider (optional model)
+      /provider key nvidia      securely prompt for/store an API key
+      /provider test [provider/model]  perform a real no-tools connectivity test
+
+    API keys are never printed. Environment variables take precedence and are
+    recommended for CI/production; config keys are encrypted by save_config().
+    """
+    from providers import PROVIDERS, detect_provider, get_api_key, stream, TextChunk, AssistantTurn
+    from config import save_config
+    import getpass
+
+    parts = args.strip().split()
+    active_model = config.get("model", "")
+    active = detect_provider(active_model)
+    if not parts or parts[0].lower() in ("status", "current"):
+        configured = []
+        for name, data in PROVIDERS.items():
+            if get_api_key(name, config) or data.get("type") in ("ollama", "lmstudio"):
+                configured.append(name)
+        info(f"Active provider: {active}  (model: {active_model})")
+        info("Configured providers: " + (", ".join(configured) or "none (set an API key or use a local provider)"))
+        info("Use /provider list, /provider use <name> [model], /provider key <name>, or /provider test")
+        return True
+
+    action = parts[0].lower()
+    aliases = {"nvidia": "nvidia-web", "openrouter": "litellm"}
+    if action in ("list", "ls"):
+        for name, data in PROVIDERS.items():
+            models = data.get("models", [])
+            marker = " *" if name == active else ""
+            key_state = "key/local" if (get_api_key(name, config) or data.get("type") in ("ollama", "lmstudio")) else "no key"
+            info(f"  {name:<14}{marker}  [{key_state}]  " + (", ".join(models[:3]) if models else "(any model)"))
+        return True
+
+    if action in ("use", "switch", "set"):
+        if len(parts) < 2:
+            err("Usage: /provider use <provider> [model]")
+            return True
+        name = aliases.get(parts[1].lower(), parts[1].lower())
+        if name not in PROVIDERS:
+            err(f"Unknown provider '{parts[1]}'. Use /provider list")
+            return True
+        model_name = " ".join(parts[2:]).strip() if len(parts) > 2 else (PROVIDERS[name].get("models") or [""])[0]
+        if not model_name:
+            err(f"Provider '{name}' requires a model: /provider use {name} <model>")
+            return True
+        config["model"] = model_name if model_name.startswith(name + "/") else f"{name}/{model_name}"
+        save_config(config)
+        ok(f"Provider set to {name} (model: {config['model']})")
+        return True
+
+    if action in ("key", "apikey", "api-key"):
+        if len(parts) < 2:
+            err("Usage: /provider key <provider>")
+            return True
+        name = aliases.get(parts[1].lower(), parts[1].lower())
+        if name not in PROVIDERS:
+            err(f"Unknown provider '{parts[1]}'. Use /provider list")
+            return True
+        env_name = PROVIDERS[name].get("api_key_env") or "(provider-specific)"
+        if os.environ.get(env_name) if env_name != "(provider-specific)" else False:
+            info(f"{name}: key is configured via {env_name} (environment takes precedence)")
+            return True
+        try:
+            value = getpass.getpass(f"API key for {name} ({env_name}, hidden): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return True
+        if not value:
+            err("Empty key; nothing changed")
+            return True
+        config[f"{name}_api_key"] = value
+        save_config(config)
+        ok(f"API key saved securely for {name}; value was not displayed")
+        return True
+
+    if action in ("test", "check"):
+        target = parts[1] if len(parts) > 1 else active_model
+        target_provider = aliases.get(target.lower(), target.lower())
+        if target_provider in PROVIDERS and "/" not in target and ":" not in target:
+            target = f"{target_provider}/{(PROVIDERS.get(target_provider, {}).get('models') or [''])[0]}"
+        provider = detect_provider(target)
+        if not get_api_key(provider, config) and PROVIDERS.get(provider, {}).get("type") not in ("ollama", "lmstudio"):
+            err(f"No API key configured for {provider}; set {PROVIDERS.get(provider, {}).get('api_key_env') or 'provider credentials'}")
+            return True
+        info(f"Testing {target} with tools disabled (real provider request)…")
+        chunks = []
+        try:
+            for event in stream(target, "Reply with exactly: provider connection ok", [{"role": "user", "content": "Reply with exactly: provider connection ok"}], [], config):
+                if isinstance(event, TextChunk):
+                    chunks.append(event.text)
+                elif isinstance(event, AssistantTurn):
+                    if event.error:
+                        err(f"{provider} test failed: {event.text}")
+                        return True
+            ok(f"{provider} connectivity OK: " + ("".join(chunks).strip()[:160] or "(empty response)"))
+        except Exception as exc:
+            err(f"{provider} test failed safely: {type(exc).__name__}: {exc}")
+        return True
+
+    err("Unknown /provider action. Use: status, list, use, key, test")
+    return True
+
 
 def cmd_model(args: str, _state, config) -> bool:
     from providers import PROVIDERS, detect_provider
@@ -10112,6 +10223,7 @@ COMMANDS = {
     "help":        cmd_help,
     "clear":       cmd_clear,
     "model":       cmd_model,
+    "provider":    cmd_provider,
     "config":      cmd_config,
     "save":        cmd_save,
     "load":        cmd_load,
@@ -10269,6 +10381,7 @@ _CMD_META: dict[str, tuple[str, list[str]]] = {
     "help":        ("Show help",                          []),
     "clear":       ("Clear conversation history",         []),
     "model":       ("Show / set model",                   []),
+    "provider":    ("List/configure/test AI providers",    ["list", "use", "key", "test", "status"]),
     "config":      ("Show / set config key=value",        []),
     "save":        ("Save session to file",               []),
     "load":        ("Load a saved session",               []),

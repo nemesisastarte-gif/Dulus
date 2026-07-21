@@ -504,6 +504,19 @@ PROVIDERS: dict[str, dict] = {
             "o3-mini", "o1", "o1-mini",
         ],
     },
+    "groq": {
+        "type":       "openai",
+        "api_key_env": "GROQ_API_KEY",
+        "base_url":   "https://api.groq.com/openai/v1",
+        "context_limit": 131072,
+        # Keep the default request small enough for Groq's free-tier TPM budget.
+        "max_completion_tokens": 4096,
+        "models": [
+            "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
+            "openai/gpt-oss-120b", "openai/gpt-oss-20b",
+            "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct-0905",
+        ],
+    },
     "gemini": {
         "type":       "openai",
         "api_key_env": "GEMINI_API_KEY",
@@ -2185,7 +2198,19 @@ def _load_web_auth(provider_label: str, auth_file: str, harvest_cmd: str = "harv
         yield AssistantTurn(msg, [], 0, 0, error=True)
         return None
     with open(auth_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+        raw = f.read()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        # Some browser-export/copy workflows omit the final object brace. A
+        # repair is safe only for an EOF error; malformed content in the middle
+        # must still fail loudly instead of accepting corrupted credentials.
+        if exc.pos >= len(raw.rstrip()) - 1 and raw.lstrip().startswith("{"):
+            try:
+                return json.loads(raw.rstrip() + "\n}")
+            except json.JSONDecodeError:
+                pass
+        raise
 
 
 def _yield_web_parsed(parser: WebToolParser, raw_content: str):
@@ -2643,6 +2668,25 @@ def stream_gemini_web(
 
 
 
+def _solve_deepseek_pow_python(challenge: str, salt: str, expire_at: int, difficulty: int):
+    """Portable fallback for DeepSeekHashV1 when the optional WASM is absent.
+
+    The web client computes SHA3-256(challenge + salt + expire_at + nonce) and
+    accepts the first nonce whose little-endian 32-bit prefix is below the
+    difficulty threshold. A typical free-tier challenge completes in well
+    under a few seconds on a normal CPU.
+    """
+    import hashlib
+    import struct
+    threshold = (2 ** 32) // max(int(difficulty), 1)
+    prefix = f"{salt}_{expire_at}_"
+    for nonce in range(10_000_000):
+        digest = hashlib.sha3_256((challenge + prefix + str(nonce)).encode()).digest()
+        if struct.unpack("<I", digest[:4])[0] < threshold:
+            return nonce
+    return None
+
+
 class _DeepSeekPoWSolver:
     """Lazy-initialized WASM PoW solver for DeepSeek web (sha3_wasm_bg)."""
     _instance = None
@@ -2657,9 +2701,14 @@ class _DeepSeekPoWSolver:
         import os
         import wasmtime
         import ctypes
-        wasm_path = os.path.join(os.path.dirname(__file__), "sha3_wasm_bg.7b9ca65ddd.wasm")
+        root = os.path.dirname(__file__)
+        candidates = [
+            os.path.join(root, "sha3_wasm_bg.7b9ca65ddd.wasm"),
+            os.path.join(root, "sha3_wasm_bg.wasm"),
+        ]
+        wasm_path = next((p for p in candidates if os.path.exists(p)), candidates[0])
         if not os.path.exists(wasm_path):
-            raise FileNotFoundError(f"WASM not found: {wasm_path}")
+            raise FileNotFoundError(f"WASM not found: {', '.join(candidates)}")
         self._engine = wasmtime.Engine()
         self._store = wasmtime.Store(self._engine)
         self._module = wasmtime.Module.from_file(self._engine, wasm_path)
@@ -2804,6 +2853,9 @@ def stream_deepseek_web(
         headers.pop(h, None)
     headers["Content-Type"] = "application/json"
     headers["Accept"] = "text/event-stream"
+    # A harvested PoW response is short-lived; never replay it. The current
+    # challenge below will provide a fresh value.
+    headers.pop("x-ds-pow-response", None)
     if token:
         headers["Authorization"] = token
 
@@ -2856,8 +2908,16 @@ def stream_deepseek_web(
             )
             if pow_resp.status_code == 200:
                 ch = pow_resp.json()["data"]["biz_data"]["challenge"]
-                solver = _DeepSeekPoWSolver.get()
-                ans = solver.solve(ch["challenge"], ch["salt"], ch["expire_at"], ch["difficulty"])
+                try:
+                    solver = _DeepSeekPoWSolver.get()
+                    ans = solver.solve(ch["challenge"], ch["salt"], ch["expire_at"], ch["difficulty"])
+                except Exception:
+                    # The WASM blob is intentionally optional and is excluded
+                    # from some source distributions. Keep harvested sessions
+                    # usable with the portable SHA3 fallback.
+                    ans = _solve_deepseek_pow_python(
+                        ch["challenge"], ch["salt"], ch["expire_at"], ch["difficulty"]
+                    )
                 if ans is not None:
                     import base64 as _b64
                     pow_obj = {
@@ -2965,9 +3025,13 @@ def stream_deepseek_web(
         yield AssistantTurn(msg, [], 0, 0, error=True)
         return
 
-    yield from _yield_web_parsed(parser, raw_content)
-
-    yield AssistantTurn(text or "[deepseek-web: no response]", parser.tool_calls, 0, 0)
+    # Parse the complete response once at the end. The previous implementation
+    # emitted parsed chunks but left ``text`` empty in AssistantTurn, which made
+    # the agent lose the web model's final answer after a tool round.
+    parsed_text = parser.parse_chunk(raw_content) + parser.flush()
+    if parsed_text:
+        yield TextChunk(parsed_text)
+    yield AssistantTurn(parsed_text or "[deepseek-web: no response]", parser.tool_calls, 0, 0)
 
 
 def _qwen_web_error(e: Exception):
@@ -4580,7 +4644,15 @@ def stream_openai_compat(
 
     oai_messages = [{"role": "system", "content": system}] + messages_to_openai(messages, model=model)
 
-    _is_nvidia = detect_provider(model) == "nvidia-web"
+    # ``stream()`` strips the explicit provider prefix before calling this
+    # adapter, so detecting only from ``model`` loses the NVIDIA identity. That
+    # used to disable NVIDIA's mid-stream quota/fallback handling on real agent
+    # turns (direct unit tests passed because they supplied the full model).
+    _adapter_provider = config.get("_provider_name") or detect_provider(model)
+    _is_nvidia = (
+        _adapter_provider == "nvidia-web"
+        or detect_provider(model) == "nvidia-web"
+    )
 
     # Alibaba Model Studio (Singapore): detect by endpoint host so it stays true
     # even though the bare model name (qwen-*) would route to plain DashScope.
@@ -4643,7 +4715,7 @@ def stream_openai_compat(
         if not config.get("disable_tool_choice"):
             kwargs["tool_choice"] = "auto"
     if config.get("max_tokens"):
-        prov_cap = PROVIDERS.get(detect_provider(model), {}).get("max_completion_tokens")
+        prov_cap = PROVIDERS.get(_adapter_provider, {}).get("max_completion_tokens")
         if _is_modelstudio:
             prov_cap = PROVIDERS.get("modelstudio", {}).get("max_completion_tokens") or prov_cap
         mt = config["max_tokens"]
@@ -5455,6 +5527,9 @@ def stream(
     model_name    = bare_model(model)
     prov          = PROVIDERS.get(provider_name, PROVIDERS["openai"])
     api_key       = get_api_key(provider_name, config)
+    # Keep provider identity available to adapters after the model prefix is
+    # stripped. This is essential for provider-specific error/fallback logic.
+    config.setdefault("_provider_name", provider_name)
 
     def _inner_stream() -> Generator:
         nonlocal api_key  # modelstudio branch may reassign (DashScope fallback)
