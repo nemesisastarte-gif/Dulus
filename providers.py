@@ -517,6 +517,18 @@ PROVIDERS: dict[str, dict] = {
             "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct-0905",
         ],
     },
+    "fireworks": {
+        "type":       "openai",
+        "api_key_env": "FIREWORKS_AI_API_KEY",
+        "base_url":   "https://api.fireworks.ai/inference/v1",
+        "context_limit": 131072,
+        "max_completion_tokens": 8192,
+        "models": [
+            "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            "accounts/fireworks/models/qwen3-235b-a22b",
+            "accounts/fireworks/models/deepseek-v3p1",
+        ],
+    },
     "gemini": {
         "type":       "openai",
         "api_key_env": "GEMINI_API_KEY",

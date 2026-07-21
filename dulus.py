@@ -1015,114 +1015,122 @@ def cmd_help(_args: str, _state, config) -> bool:
     return True
 
 def cmd_provider(args: str, _state, config) -> bool:
-    """Manage model providers without exposing API keys.
+    """Informative provider manager for native API and local providers.
 
-    Usage:
-      /provider                 show active provider and configured providers
-      /provider list             list providers and suggested models
-      /provider use nvidia [m]  switch provider (optional model)
-      /provider key nvidia      securely prompt for/store an API key
-      /provider test [provider/model]  perform a real no-tools connectivity test
-
-    API keys are never printed. Environment variables take precedence and are
-    recommended for CI/production; config keys are encrypted by save_config().
+    Harvest-backed web providers are intentionally omitted: they have their
+    own native /harvest-* commands and do not need API-key setup here.
     """
     from providers import PROVIDERS, detect_provider, get_api_key, stream, TextChunk, AssistantTurn
     from config import save_config
     import getpass
 
+    hidden = {"gemini-web", "claude-web", "claude-code", "kimi-web",
+              "deepseek-web", "qwen-web"}
+    categories = {
+        "Free / hosted": {"nvidia-web", "groq", "fireworks", "ollama", "lmstudio"},
+        "Cloud API": {"anthropic", "openai", "gemini", "kimi", "qwen", "zhipu", "deepseek", "minimax"},
+        "Gateway / compatible": {"litellm", "azure", "modelstudio", "amd", "custom"},
+        "Other hosted": {"xai-oauth", "xiaomi", "sakana"},
+    }
+    aliases = {"nvidia": "nvidia-web", "openrouter": "litellm"}
     parts = args.strip().split()
     active_model = config.get("model", "")
     active = detect_provider(active_model)
-    if not parts or parts[0].lower() in ("status", "current"):
-        configured = []
-        for name, data in PROVIDERS.items():
-            if get_api_key(name, config) or data.get("type") in ("ollama", "lmstudio"):
-                configured.append(name)
-        info(f"Active provider: {active}  (model: {active_model})")
-        info("Configured providers: " + (", ".join(configured) or "none (set an API key or use a local provider)"))
-        info("Use /provider list, /provider use <name> [model], /provider key <name>, or /provider test")
+    visible = [n for n in PROVIDERS if n not in hidden]
+
+    def _key_state(name: str) -> str:
+        data = PROVIDERS[name]
+        if data.get("type") in ("ollama", "lmstudio"):
+            return "local"
+        return "configured" if get_api_key(name, config) else "no key"
+
+    def _show_list():
+        info(f"Active: {active}  |  model: {active_model}")
+        info("Native harvest providers are hidden here; use /harvest, /harvest-deepseek, /harvest-gemini, /harvest-kimi or /harvest-qwen.")
+        for title, names in categories.items():
+            rows = [n for n in visible if n in names]
+            if not rows:
+                continue
+            info(f"\n━━ {title} ━━")
+            for name in rows:
+                data = PROVIDERS[name]
+                mark = " *" if name == active else "  "
+                env = data.get("api_key_env") or "local / backend-specific"
+                models = data.get("models", [])
+                sample = ", ".join(models[:3]) if models else "custom model"
+                info(f"{mark}{name:<13} [{_key_state(name):<10}] env: {env}")
+                info(f"    models: {sample}")
+        info("\nCommands: /provider info <name> | /provider use <name> [model] | /provider key <name> | /provider test [name/model]")
+        info("Aliases: nvidia → nvidia-web | openrouter → litellm | fireworks → native Fireworks API")
+
+    if not parts or parts[0].lower() in ("list", "ls", "status", "current"):
+        _show_list()
         return True
 
     action = parts[0].lower()
-    aliases = {"nvidia": "nvidia-web", "openrouter": "litellm"}
-    if action in ("list", "ls"):
-        for name, data in PROVIDERS.items():
-            models = data.get("models", [])
-            marker = " *" if name == active else ""
-            key_state = "key/local" if (get_api_key(name, config) or data.get("type") in ("ollama", "lmstudio")) else "no key"
-            info(f"  {name:<14}{marker}  [{key_state}]  " + (", ".join(models[:3]) if models else "(any model)"))
+    if action == "info":
+        if len(parts) < 2:
+            _show_list(); return True
+        name = aliases.get(parts[1].lower(), parts[1].lower())
+        if name not in PROVIDERS or name in hidden:
+            err(f"Unknown or harvest-native provider '{parts[1]}'. Use /provider list.")
+            return True
+        data = PROVIDERS[name]
+        info(f"Provider: {name}\nType: {data.get('type')}\nAPI key env: {data.get('api_key_env') or 'none / backend-specific'}\nStatus: {_key_state(name)}")
+        info("Models: " + (", ".join(data.get("models", [])) or "enter any compatible model"))
+        info("Suggested: /provider use " + name + (" " + data.get("models", [""])[0] if data.get("models") else " <model>"))
         return True
 
     if action in ("use", "switch", "set"):
         if len(parts) < 2:
-            err("Usage: /provider use <provider> [model]")
-            return True
+            err("Usage: /provider use <provider> [model]"); return True
         name = aliases.get(parts[1].lower(), parts[1].lower())
-        if name not in PROVIDERS:
-            err(f"Unknown provider '{parts[1]}'. Use /provider list")
-            return True
+        if name not in PROVIDERS or name in hidden:
+            err(f"Unknown or harvest-native provider '{parts[1]}'. Use /provider list."); return True
         model_name = " ".join(parts[2:]).strip() if len(parts) > 2 else (PROVIDERS[name].get("models") or [""])[0]
         if not model_name:
-            err(f"Provider '{name}' requires a model: /provider use {name} <model>")
-            return True
+            err(f"Provider '{name}' requires a model."); return True
         config["model"] = model_name if model_name.startswith(name + "/") else f"{name}/{model_name}"
-        save_config(config)
-        ok(f"Provider set to {name} (model: {config['model']})")
-        return True
+        save_config(config); ok(f"Provider set to {name} (model: {config['model']})"); return True
 
     if action in ("key", "apikey", "api-key"):
         if len(parts) < 2:
-            err("Usage: /provider key <provider>")
-            return True
+            err("Usage: /provider key <provider>"); return True
         name = aliases.get(parts[1].lower(), parts[1].lower())
-        if name not in PROVIDERS:
-            err(f"Unknown provider '{parts[1]}'. Use /provider list")
-            return True
-        env_name = PROVIDERS[name].get("api_key_env") or "(provider-specific)"
-        if os.environ.get(env_name) if env_name != "(provider-specific)" else False:
-            info(f"{name}: key is configured via {env_name} (environment takes precedence)")
-            return True
-        try:
-            value = getpass.getpass(f"API key for {name} ({env_name}, hidden): ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            return True
-        if not value:
-            err("Empty key; nothing changed")
-            return True
-        config[f"{name}_api_key"] = value
-        save_config(config)
-        ok(f"API key saved securely for {name}; value was not displayed")
-        return True
+        if name not in PROVIDERS or name in hidden:
+            err(f"Unknown or harvest-native provider '{parts[1]}'."); return True
+        env_name = PROVIDERS[name].get("api_key_env")
+        if env_name and os.environ.get(env_name):
+            info(f"{name}: key configured through {env_name}; environment takes precedence."); return True
+        try: value = getpass.getpass(f"API key for {name} (hidden): ").strip()
+        except (EOFError, KeyboardInterrupt): print(); return True
+        if not value: err("Empty key; nothing changed"); return True
+        config[f"{name}_api_key"] = value; save_config(config)
+        ok(f"API key saved securely for {name}; value was not displayed"); return True
 
     if action in ("test", "check"):
         target = parts[1] if len(parts) > 1 else active_model
-        target_provider = aliases.get(target.lower(), target.lower())
-        if target_provider in PROVIDERS and "/" not in target and ":" not in target:
-            target = f"{target_provider}/{(PROVIDERS.get(target_provider, {}).get('models') or [''])[0]}"
+        target_alias = aliases.get(target.lower(), target.lower())
+        if target_alias in PROVIDERS and "/" not in target and ":" not in target:
+            target = f"{target_alias}/{(PROVIDERS[target_alias].get('models') or [''])[0]}"
         provider = detect_provider(target)
+        if provider in hidden:
+            err("Harvest-native providers are tested through their /harvest command, not /provider test."); return True
         if not get_api_key(provider, config) and PROVIDERS.get(provider, {}).get("type") not in ("ollama", "lmstudio"):
-            err(f"No API key configured for {provider}; set {PROVIDERS.get(provider, {}).get('api_key_env') or 'provider credentials'}")
-            return True
-        info(f"Testing {target} with tools disabled (real provider request)…")
+            err(f"No API key configured for {provider}; use /provider key {provider} or its environment variable."); return True
+        info(f"Testing {target} with tools disabled…")
         chunks = []
         try:
-            for event in stream(target, "Reply with exactly: provider connection ok", [{"role": "user", "content": "Reply with exactly: provider connection ok"}], [], config):
-                if isinstance(event, TextChunk):
-                    chunks.append(event.text)
-                elif isinstance(event, AssistantTurn):
-                    if event.error:
-                        err(f"{provider} test failed: {event.text}")
-                        return True
-            ok(f"{provider} connectivity OK: " + ("".join(chunks).strip()[:160] or "(empty response)"))
-        except Exception as exc:
-            err(f"{provider} test failed safely: {type(exc).__name__}: {exc}")
+            for event in stream(target, "Reply exactly: provider connection ok", [{"role":"user","content":"Reply exactly: provider connection ok"}], [], config):
+                if isinstance(event, TextChunk): chunks.append(event.text)
+                elif isinstance(event, AssistantTurn) and event.error:
+                    err(f"{provider} test failed: {event.text}"); return True
+            ok(f"{provider} connectivity OK: {''.join(chunks).strip()[:160] or '(empty response)'}")
+        except Exception as exc: err(f"{provider} test failed safely: {type(exc).__name__}: {exc}")
         return True
 
-    err("Unknown /provider action. Use: status, list, use, key, test")
+    err("Unknown /provider action. Use: list, info, use, key, test")
     return True
-
 
 def cmd_model(args: str, _state, config) -> bool:
     from providers import PROVIDERS, detect_provider
@@ -3055,7 +3063,9 @@ def cmd_harvest_kimi(_args: str, _state, config) -> bool:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=pw_profile,
-                channel="chrome",
+                # Use Playwright's bundled Chromium by default. ``channel=chrome``
+                # fails on Linux machines that do not have Google Chrome installed.
+                channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=False,
                 args=[
                     "--no-sandbox",
@@ -3377,10 +3387,30 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        info("Installing playwright...")
-        __import__("subprocess").run(__import__("common").pip_install_cmd("playwright"))
-        os.system("playwright install chromium")
+        # A PyInstaller executable cannot run ``<executable> -m pip``. Keep
+        # capture setup explicit and actionable instead of crashing the REPL.
+        frozen = bool(getattr(sys, "frozen", False))
+        if frozen:
+            err("DeepSeek capture needs Playwright. Install it in the Python environment, then run: "
+                "python -m pip install playwright && python -m playwright install chromium")
+            return True
+        info("Playwright is missing; installing it in the active Python environment...")
+        result = __import__("subprocess").run(
+            [sys.executable, "-m", "pip", "install", "playwright"],
+            check=False,
+        )
+        if result.returncode != 0:
+            err("Could not install Playwright. Run: python -m pip install playwright")
+            return True
         from playwright.sync_api import sync_playwright
+        browser_install = __import__("subprocess").run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            check=False,
+        )
+        if browser_install.returncode != 0:
+            err("Playwright installed but Chromium setup failed. Run: "
+                "python -m playwright install chromium")
+            return True
 
     pw_profile = os.path.join(os.path.expanduser("~"), ".dulus", "playwright", "deepseek-interceptor")
     os.makedirs(pw_profile, exist_ok=True)

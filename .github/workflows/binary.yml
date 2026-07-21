@@ -46,7 +46,7 @@ jobs:
       - name: Build executable
         shell: bash
         run: |
-          pyinstaller --clean --noconfirm --onefile --name dulus dulus.py
+          pyinstaller --clean --noconfirm dulus.spec
           test -f "dist/${{ matrix.binary }}"
 
       - name: Package binary

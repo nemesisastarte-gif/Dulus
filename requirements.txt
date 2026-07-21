@@ -49,6 +49,9 @@ truststore>=0.9  # OS trust store fix for corporate TLS interception (Zero Trust
 
 # ── OCR (local image text extraction) ────────────────────────────────────
 pytesseract>=0.3.10
+# Browser automation required by /harvest, /harvest-deepseek, /harvest-gemini, etc.
+# After installation run: python -m playwright install chromium
+playwright>=1.40.0
 # Tesseract binary required:
 #   Windows: winget install -e --id UB-Mannheim.TesseractOCR
 #   Linux:   sudo apt-get install -y tesseract-ocr
