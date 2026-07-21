@@ -3391,8 +3391,9 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
         # capture setup explicit and actionable instead of crashing the REPL.
         frozen = bool(getattr(sys, "frozen", False))
         if frozen:
-            err("DeepSeek capture needs Playwright. Install it in the Python environment, then run: "
-                "python -m pip install playwright && python -m playwright install chromium")
+            err("This binary was built without Playwright. Download the latest Dulus binary "
+                "or run the source version from your virtual environment: "
+                "python -m playwright install chromium && python dulus.py")
             return True
         info("Playwright is missing; installing it in the active Python environment...")
         result = __import__("subprocess").run(

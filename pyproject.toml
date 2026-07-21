@@ -54,6 +54,8 @@ dependencies = [
     # lightweight; Tesseract binary must be installed separately (see README).
     # Pillow already listed above — no duplicate needed.
     "pytesseract>=0.3.10",
+    # Native harvest commands use Playwright for browser session capture.
+    "playwright>=1.40.0",
 ]
 
 # mempalace pulls chromadb (26 transitive deps incl. numpy + onnxruntime),
