@@ -2927,7 +2927,7 @@ def cmd_harvest(_args: str, _state, config) -> bool:
             with sync_playwright() as p:
                 browser = p.chromium.launch_persistent_context(
                     user_data_dir=pw_profile,
-                    channel="chrome",
+                    channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                     headless=False,
                     args=[
                         "--no-sandbox",
@@ -3139,8 +3139,11 @@ def cmd_harvest_kimi(_args: str, _state, config) -> bool:
         # Clear state so new parent_id etc are picked up
         config.pop("_kimi_web_parent_id", None)
         
+        config["model"] = "kimi-web/kimi-latest"
+        from config import save_config
+        save_config(config)
         ok(f"Harvested Kimi tokens → {out_path}")
-        ok("kimi-web provider updated — next message will use fresh tokens.")
+        ok("kimi-web provider selected automatically → kimi-web/kimi-latest")
     except Exception as e:
         err(f"Kimi Harvest failed: {e}")
 
@@ -3177,7 +3180,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
 
     # Headless por defecto para que funcione en VMs/servidores sin display.
     # Si Google detecta headless y bloquea, el usuario puede forzar ventana visible.
-    headless = os.getenv("DULUS_GEMINI_HEADLESS", "1").lower() not in ("0", "false", "no", "off")
+    headless = os.getenv("DULUS_GEMINI_HEADLESS", "0").lower() not in ("0", "false", "no", "off")
     if not headless:
         info("DULUS_GEMINI_HEADLESS=0 — using visible Chrome window.")
 
@@ -3185,7 +3188,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=pw_profile,
-                channel="chrome",
+                channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=headless,
                 ignore_default_args=["--enable-automation"],
                 args=[
@@ -3357,8 +3360,11 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
         except Exception:
             pass
 
+        config["model"] = "gemini-web/gemini-flash"
+        from config import save_config
+        save_config(config)
         ok(f"Harvested Gemini tokens → {out_path}")
-        ok("gemini-web provider updated — next message will use the selected chat.")
+        ok("gemini-web provider selected automatically → gemini-web/gemini-flash")
     except Exception as e:
         return True
 
@@ -3420,7 +3426,7 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=pw_profile,
-                channel="chrome",
+                channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=False,
                 ignore_default_args=["--enable-automation"],
                 args=[
@@ -3524,8 +3530,11 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
             save_config(config)
             ok(f"Session synced → {captured_session_id[0]}")
 
+        config["model"] = "deepseek-web/deepseek-v3"
+        from config import save_config
+        save_config(config)
         ok(f"Harvested DeepSeek tokens → {out_path}")
-        ok("deepseek-web provider ready — use model: deepseek-web/deepseek-v3 or deepseek-web/deepseek-r1")
+        ok("deepseek-web provider selected automatically → deepseek-web/deepseek-v3")
 
     except Exception as e:
         err(f"Harvest failed: {e}")
@@ -3568,7 +3577,7 @@ def cmd_harvest_qwen(_args: str, _state, config) -> bool:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=pw_profile,
-                channel="chrome",
+                channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=False,
                 ignore_default_args=["--enable-automation"],
                 args=[

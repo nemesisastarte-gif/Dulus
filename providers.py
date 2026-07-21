@@ -4752,7 +4752,7 @@ def stream_openai_compat(
             print(f"[nvidia-web RAW ERROR] {type(e).__name__}: {e}", file=sys.stderr, flush=True)
             if not config.get("_nvidia_fallback_active"):
                 chain = _get_nvidia_fallback_chain(config)
-                bare = model.split("/", 1)[-1] if "/" in model else model
+                bare = config.get("_provider_model") or (model.split("/", 1)[-1] if "/" in model else model)
                 try:
                     idx = chain.index(bare)
                     remaining = chain[idx + 1:]
@@ -4761,7 +4761,7 @@ def stream_openai_compat(
                 for next_model in remaining:
                     full = f"nvidia-web/{next_model}"
                     yield TextChunk(f"\n⚡ NVIDIA rate limit — switching to {next_model}...\n")
-                    fallback_config = {**config, "_nvidia_fallback_active": True}
+                    fallback_config = {**config, "_nvidia_fallback_active": True, "_provider_model": next_model}
                     yield from stream_openai_compat(api_key, base_url, full, system, messages, tool_schemas, fallback_config)
                     return
         if _is_modelstudio and _ms_remaining:
@@ -4838,7 +4838,7 @@ def stream_openai_compat(
                 # rerun would duplicate the partial answer.
                 if not _partial and not config.get("_nvidia_fallback_active"):
                     chain = _get_nvidia_fallback_chain(config)
-                    bare = model.split("/", 1)[-1] if "/" in model else model
+                    bare = config.get("_provider_model") or (model.split("/", 1)[-1] if "/" in model else model)
                     try:
                         idx = chain.index(bare)
                         remaining = chain[idx + 1:]
@@ -5542,6 +5542,7 @@ def stream(
     # Keep provider identity available to adapters after the model prefix is
     # stripped. This is essential for provider-specific error/fallback logic.
     config.setdefault("_provider_name", provider_name)
+    config.setdefault("_provider_model", model_name)
 
     def _inner_stream() -> Generator:
         nonlocal api_key  # modelstudio branch may reassign (DashScope fallback)
