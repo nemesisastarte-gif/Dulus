@@ -2887,6 +2887,47 @@ def cmd_mem_palace(args: str, _state, config) -> bool:
     return True
 
 
+def _find_playwright_browser() -> str | None:
+    """Find a browser installed outside a PyInstaller bundle.
+
+    PyInstaller bundles the Playwright Python client, not its ~150MB browser
+    binaries. Prefer an explicit path, then the user's Playwright cache, then
+    a system browser. Returning None lets Playwright use its normal resolver.
+    """
+    import glob, shutil
+    explicit = os.environ.get("DULUS_BROWSER_EXECUTABLE")
+    candidates = [explicit] if explicit else []
+    cache = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if cache and cache != "0":
+        candidates += glob.glob(os.path.join(cache, "chromium-*", "chrome-linux", "chrome"))
+        candidates += glob.glob(os.path.join(cache, "chromium-*", "chrome-linux64", "chrome"))
+        candidates += glob.glob(os.path.join(cache, "chromium-*", "chrome-win", "chrome.exe"))
+        candidates += glob.glob(os.path.join(cache, "chromium-*", "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"))
+    home_cache = os.path.expanduser("~/.cache/ms-playwright")
+    candidates += glob.glob(os.path.join(home_cache, "chromium-*", "chrome-linux", "chrome"))
+    candidates += glob.glob(os.path.join(home_cache, "chromium-*", "chrome-linux64", "chrome"))
+    candidates += glob.glob(os.path.join(home_cache, "chromium-*", "chrome-win", "chrome.exe"))
+    candidates += glob.glob(os.path.join(home_cache, "chromium-*", "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"))
+    candidates += [shutil.which(x) for x in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome")]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def _report_harvest_browser_error(label: str, exc: Exception) -> None:
+    """Turn Playwright launch failures into actionable platform guidance."""
+    msg = str(exc)
+    if "shared librar" in msg or "Executable doesn't exist" in msg or "TargetClosedError" in msg:
+        err(f"{label} browser could not start: {msg.split('\n')[0]}")
+        info("Install the browser and Linux runtime dependencies once with:")
+        info("  python -m playwright install chromium")
+        info("  sudo python -m playwright install-deps chromium")
+        info("Then restart Dulus. You can also set DULUS_BROWSER_EXECUTABLE=/path/to/chrome.")
+    else:
+        err(f"{label} Harvest failed: {type(exc).__name__}: {exc}")
+
+
 def cmd_harvest(_args: str, _state, config) -> bool:
     """Harvest fresh cookies from claude.ai using Playwright.
 
@@ -2926,6 +2967,7 @@ def cmd_harvest(_args: str, _state, config) -> bool:
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch_persistent_context(
+                    executable_path=_find_playwright_browser(),
                     user_data_dir=pw_profile,
                     channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                     headless=False,
@@ -3062,6 +3104,7 @@ def cmd_harvest_kimi(_args: str, _state, config) -> bool:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
+                executable_path=_find_playwright_browser(),
                 user_data_dir=pw_profile,
                 # Use Playwright's bundled Chromium by default. ``channel=chrome``
                 # fails on Linux machines that do not have Google Chrome installed.
@@ -3187,6 +3230,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
+                executable_path=_find_playwright_browser(),
                 user_data_dir=pw_profile,
                 channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=headless,
@@ -3366,6 +3410,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
         ok(f"Harvested Gemini tokens → {out_path}")
         ok("gemini-web provider selected automatically → gemini-web/gemini-flash")
     except Exception as e:
+        _report_harvest_browser_error("Gemini", e)
         return True
 
 
@@ -3425,6 +3470,7 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
+                executable_path=_find_playwright_browser(),
                 user_data_dir=pw_profile,
                 channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=False,
@@ -3537,7 +3583,7 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
         ok("deepseek-web provider selected automatically → deepseek-web/deepseek-v3")
 
     except Exception as e:
-        err(f"Harvest failed: {e}")
+        _report_harvest_browser_error("DeepSeek", e)
 
     return True
 
@@ -3576,6 +3622,7 @@ def cmd_harvest_qwen(_args: str, _state, config) -> bool:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
+                executable_path=_find_playwright_browser(),
                 user_data_dir=pw_profile,
                 channel=os.environ.get("DULUS_BROWSER_CHANNEL") or None,
                 headless=False,
