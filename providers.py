@@ -3330,7 +3330,10 @@ def stream_qwen_web(
         or auth_data.get("parent_id")
     )
     if fresh_qwen:
-        chat_id = str(uuid.uuid4())
+        # Keep the chat created by the browser capture, but discard its old
+        # parent message. Random UUIDs are not registered server-side and make
+        # Qwen return `Chat unavailable`.
+        chat_id = auth_data.get("chat_id") or chat_id
         parent_id = None
 
     # Build conversation history. Qwen's server keeps the thread (chat_id +

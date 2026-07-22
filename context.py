@@ -256,7 +256,7 @@ def _resolve_reply_language(config: dict | None) -> str:
     raw = (config.get("lang", "") if config else "") or ""
     raw = raw.strip()
     if not raw:
-        return "Dominican Spanish"
+        return "French"
     # ISO code shortcut.
     code = raw.lower().replace("_", "-")
     if code in _LANG_NAMES:
