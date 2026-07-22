@@ -2549,6 +2549,10 @@ def stream_gemini_web(
     auth_data = yield from _load_web_auth("gemini-web", auth_file, "harvest-gemini")
     if auth_data is None:
         return
+    if config.pop("_gemini_web_fresh_session", False):
+        config.pop("gemini_web_c_id", None)
+        config.pop("gemini_web_r_id", None)
+        config.pop("gemini_web_rc_id", None)
 
     # ── State / Prompt Extraction ──────────────────────────────────────────
     manifest = _format_web_tool_manifest(tool_schemas, config, messages)
@@ -3288,12 +3292,13 @@ def stream_qwen_web(
     auth_data = yield from _load_web_auth("qwen-web", auth_file, "harvest-qwen")
     if auth_data is None:
         return
+    fresh_qwen = config.pop("_qwen_web_fresh_session", False)
 
     # ── Load persisted chat state (chat_id + parent_id across restarts) ──
     import pathlib as _pl
     _qw_state_path = _pl.Path.home() / ".dulus" / "qwen_chat_state.json"
     _qw_state = {}
-    if _qw_state_path.exists():
+    if _qw_state_path.exists() and not fresh_qwen:
         try:
             with open(_qw_state_path, "r", encoding="utf-8") as _f:
                 _qw_state = json.load(_f)
@@ -3324,6 +3329,9 @@ def stream_qwen_web(
         or config.get("qwen_web_parent_id")
         or auth_data.get("parent_id")
     )
+    if fresh_qwen:
+        chat_id = str(uuid.uuid4())
+        parent_id = None
 
     # Build conversation history. Qwen's server keeps the thread (chat_id +
     # parent_id), so on continuation turns we send ONLY the new user content

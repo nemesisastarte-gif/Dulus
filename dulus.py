@@ -3405,6 +3405,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
             pass
 
         config["model"] = "gemini-web/gemini-flash"
+        config["_gemini_web_fresh_session"] = True
         from config import save_config
         save_config(config)
         ok(f"Harvested Gemini tokens → {out_path}")
@@ -3736,8 +3737,12 @@ def cmd_harvest_qwen(_args: str, _state, config) -> bool:
         from config import save_config
         save_config(config)
 
+        config["model"] = "qwen-web/qwen3.6-plus"
+        config["_qwen_web_fresh_session"] = True
+        from config import save_config
+        save_config(config)
         ok(f"Harvested Qwen session → {out_path}")
-        ok("qwen-web provider ready — use model: qwen-web/qwen3.6-plus (or qwen-max, qwen-turbo, qwen-plus)")
+        ok("qwen-web provider selected automatically → qwen-web/qwen3.6-plus")
 
     except Exception as e:
         err(f"Harvest failed: {e}")
