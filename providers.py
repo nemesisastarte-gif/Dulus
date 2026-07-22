@@ -3111,7 +3111,8 @@ def stream_deepseek_web(
         if "application/json" in (response.headers.get("content-type", "") or ""):
             try:
                 body = response.json()
-                msg_raw = str(body.get("data", {}).get("biz_msg", ""))
+                body_data = body.get("data") or {}
+                msg_raw = str(body_data.get("biz_msg", ""))
                 if ("invalid chat session" in msg_raw.lower() or "invalid message id" in msg_raw.lower()) and not config.get("_deepseek_session_override"):
                     yield TextChunk("[deepseek-web] Remote chat session expired — creating a fresh session…\n")
                     try:
@@ -3128,7 +3129,9 @@ def stream_deepseek_web(
                             json={"character_id": None},
                             timeout=30,
                         )
-                        created = create_resp.json().get("data", {}).get("biz_data", {}).get("chat_session", {})
+                        created_body = create_resp.json()
+                        created_data = created_body.get("data") or {}
+                        created = created_data.get("biz_data", {}).get("chat_session", {})
                         new_session = created.get("id")
                     except Exception:
                         new_session = None

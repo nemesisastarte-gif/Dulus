@@ -12862,6 +12862,10 @@ def main():
         print(f"(welcome wizard skipped: {_e})")
 
     config = load_config()
+    # A Debian bundle is immutable; never try to pip-upgrade it in place.
+    if os.environ.get("NEMESIS_PACKAGED"):
+        config["auto_update"] = False
+        config["auto_update_install"] = False
 
     # ── Anonymous telemetry (opt-in, one-time consent prompt) ───────────
     # Asks ONCE on an interactive boot when the user has never answered.

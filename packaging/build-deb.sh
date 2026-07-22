@@ -37,6 +37,7 @@ cat > "${PKG}/usr/bin/nemesis" <<'SH'
 #!/bin/sh
 set -eu
 export NEMESIS_BUNDLE_HOME=/opt/nemesis
+export NEMESIS_PACKAGED=1
 export PLAYWRIGHT_BROWSERS_PATH=/opt/nemesis/playwright-browsers
 exec /opt/nemesis/nemesis "$@"
 SH

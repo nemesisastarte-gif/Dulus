@@ -5,7 +5,7 @@ hiddenimports = (
     collect_submodules("dulus_mcp")
     + collect_submodules("dulus_tools")
     + collect_submodules("gui")
-    + ["dulus_gui", "customtkinter", "PIL", "playwright"]
+    + ["dulus_gui", "customtkinter", "PIL", "PIL._tkinter_finder", "PIL._imagingtk", "playwright"]
 )
 datas = [
     ("sandbox/dist", "sandbox/dist"),
