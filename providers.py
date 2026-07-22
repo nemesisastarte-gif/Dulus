@@ -3019,9 +3019,6 @@ def stream_deepseek_web(
         headers.pop(h, None)
     headers["Content-Type"] = "application/json"
     headers["Accept"] = "text/event-stream"
-    # A harvested PoW response is short-lived; never replay it. The current
-    # challenge below will provide a fresh value.
-    headers.pop("x-ds-pow-response", None)
     if token:
         headers["Authorization"] = token
 
