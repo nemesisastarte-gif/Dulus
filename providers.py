@@ -2848,10 +2848,14 @@ class _DeepSeekPoWSolver:
         import wasmtime
         import ctypes
         root = os.path.dirname(__file__)
+        bundle_root = os.environ.get("NEMESIS_BUNDLE_HOME", "")
         candidates = [
+            os.path.join(bundle_root, "sha3_wasm_bg.7b9ca65ddd.wasm") if bundle_root else "",
+            os.path.join(bundle_root, "sha3_wasm_bg.wasm") if bundle_root else "",
             os.path.join(root, "sha3_wasm_bg.7b9ca65ddd.wasm"),
             os.path.join(root, "sha3_wasm_bg.wasm"),
         ]
+        candidates = [p for p in candidates if p]
         wasm_path = next((p for p in candidates if os.path.exists(p)), candidates[0])
         if not os.path.exists(wasm_path):
             raise FileNotFoundError(f"WASM not found: {', '.join(candidates)}")
