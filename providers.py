@@ -3077,10 +3077,12 @@ def stream_deepseek_web(
                 try:
                     solver = _DeepSeekPoWSolver.get()
                     ans = solver.solve(ch["challenge"], ch["salt"], ch["expire_at"], ch["difficulty"])
-                except Exception:
+                except Exception as _pow_exc:
                     # The WASM blob is intentionally optional and is excluded
                     # from some source distributions. Keep harvested sessions
                     # usable with the portable SHA3 fallback.
+                    if _os.environ.get("NEMESIS_POW_DEBUG"):
+                        print(f"[deepseek-web] PoW WASM unavailable: {type(_pow_exc).__name__}: {_pow_exc}", file=__import__("sys").stderr, flush=True)
                     ans = _solve_deepseek_pow_python(
                         ch["challenge"], ch["salt"], ch["expire_at"], ch["difficulty"]
                     )
