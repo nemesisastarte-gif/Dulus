@@ -44,7 +44,8 @@ jobs:
           DEB_ARCH: amd64
         run: |
           chmod +x packaging/build-deb.sh
-          packaging/build-deb.sh "${GITHUB_REF_NAME#v}"
+          VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          packaging/build-deb.sh "$VERSION"
           dpkg-deb --info dist/nemesis_*.deb
           dpkg-deb --contents dist/nemesis_*.deb | grep -E 'opt/nemesis/(nemesis|playwright-browsers)|usr/bin/nemesis'
 
