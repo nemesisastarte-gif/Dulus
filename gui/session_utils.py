@@ -23,7 +23,7 @@ def build_title(messages: list[dict]) -> str:
             if text.strip():
                 clean = text.strip().replace("\n", " ")
                 return clean[:40] + ("..." if len(clean) > 40 else "")
-    return "Nueva conversación"
+    return "Nouvelle conversation"
 
 
 def _read_session_meta(path: Path) -> dict | None:
@@ -202,3 +202,57 @@ def delete_session(session_id: str) -> bool:
         except: pass
 
     return deleted
+
+
+def _find_session_file(session_id: str) -> Path | None:
+    for meta in scan_sessions():
+        if meta.get("id") == session_id:
+            return Path(meta["path"])
+    return None
+
+
+def rename_session(session_id: str, title: str) -> bool:
+    path = _find_session_file(session_id)
+    if not path or not title.strip(): return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["title"] = title.strip()
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        _scan_cache.pop(str(path), None)
+        return True
+    except Exception: return False
+
+
+def duplicate_session(session_id: str) -> str | None:
+    path = _find_session_file(session_id)
+    if not path: return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        new_id = uuid.uuid4().hex[:8]
+        data["session_id"] = new_id
+        data["saved_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        day = DAILY_DIR / datetime.datetime.now().strftime("%Y-%m-%d")
+        day.mkdir(parents=True, exist_ok=True)
+        out = day / f"session_{datetime.datetime.now().strftime('%H%M%S')}_{new_id}.json"
+        out.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        return new_id
+    except Exception: return None
+
+
+def export_session(session_id: str, destination: str, fmt: str = "md") -> bool:
+    path = _find_session_file(session_id)
+    if not path: return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if fmt == "json":
+            Path(destination).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        else:
+            lines = [f"# Session {session_id}\n", f"Date : {data.get('saved_at','')}\n"]
+            for m in data.get("messages", []):
+                role = m.get("role", "").capitalize()
+                content = m.get("content", "")
+                if isinstance(content, list): content = "\n".join(str(x) for x in content)
+                lines.append(f"\n## {role}\n\n{content}\n")
+            Path(destination).write_text("".join(lines), encoding="utf-8")
+        return True
+    except Exception: return False

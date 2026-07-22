@@ -130,7 +130,15 @@ class _ProviderRetry:
             raise last_exc
 
 
-_ANTHROPIC_PARAM_RE = re.compile(
+_ANTHROPIC_FUNCTION_EQUALS_RE = re.compile(
+    r"<function\s*=\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*>(?P<body>.*?)</function>",
+    re.DOTALL | re.IGNORECASE,
+)
+_PARAM_EQUALS_RE = re.compile(
+    r"<parameter\s*=\s*(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*>(?P<val>.*?)</parameter>",
+    re.DOTALL | re.IGNORECASE,
+)
+_PARAM_RE = re.compile(
     r'<parameter\s+name="(?P<key>[^"]+)"\s*>(?P<val>.*?)</parameter>',
     re.DOTALL,
 )
@@ -263,6 +271,109 @@ def _decode_webchat_entities(text: str) -> str:
                 .replace("&amp;", "&"))
 
 
+_STANDALONE_TOOL_BLOCK_RE = re.compile(
+    r"<(?P<tag>function_calls|function_call|function|invoke)\b(?P<attrs>[^>]*)>"
+    r"(?P<body>.*?)</(?P=tag)>",
+    re.DOTALL | re.IGNORECASE,
+)
+_ATTR_NAME_RE = re.compile(r"\bname\s*=\s*(['\"])(?P<name>.*?)\1", re.DOTALL)
+_FUNCTION_EQUALS_RE = re.compile(
+    r"<function\s*=\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*>(?P<body>.*?)</function>",
+    re.DOTALL | re.IGNORECASE,
+)
+_PARAM_RE = re.compile(
+    r"<parameter\b[^>]*?name\s*=\s*(['\"])(?P<key>.*?)\1[^>]*>"
+    r"(?P<val>.*?)</parameter>",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _coerce_tool_value(value: str):
+    value = value.strip()
+    if value.lower() == "true": return True
+    if value.lower() == "false": return False
+    if value.lower() == "null": return None
+    if value.startswith(("[", "{")):
+        try: return json.loads(value)
+        except Exception: pass
+    try:
+        return int(value) if re.fullmatch(r"-?\d+", value) else float(value)
+    except Exception:
+        return value
+
+
+def _extract_standalone_tool_calls(text: str):
+    """Extract XML/function-call dialects emitted outside <tool_call>.
+
+    Qwen/Gemini occasionally emit Anthropic-style blocks such as
+    ``<function_calls><invoke name="Read">...</invoke></function_calls>`` or
+    leave a trailing ``</parameter></function>`` fragment. The old parser
+    displayed these as text, so the agent never dispatched the tool.
+    """
+    found = []
+    spans = []
+
+    # Qwen commonly emits: <function=Grep><parameter=input>{...}</parameter></function>
+    for match in _FUNCTION_EQUALS_RE.finditer(text):
+        name = match.group("name")
+        body = match.group("body") or ""
+        params = {}
+        param_matches = list(_PARAM_RE.finditer(body)) + list(_PARAM_EQUALS_RE.finditer(body))
+        for pm in param_matches:
+            key = pm.group("key").strip()
+            value = pm.group("val").strip()
+            if key == "input":
+                try:
+                    decoded = json.loads(value)
+                    if isinstance(decoded, dict): params.update(decoded)
+                except Exception: pass
+            else:
+                params[key] = _coerce_tool_value(value)
+        if not params:
+            try:
+                decoded = json.loads(body.strip())
+                if isinstance(decoded, dict): params = decoded.get("input") or decoded
+            except Exception: pass
+        found.append((name, params if isinstance(params, dict) else {}))
+        spans.append(match.span())
+
+    for match in _STANDALONE_TOOL_BLOCK_RE.finditer(text):
+        tag = match.group("tag").lower()
+        attrs = match.group("attrs") or ""
+        body = match.group("body") or ""
+        name_match = _ATTR_NAME_RE.search(attrs)
+        name = name_match.group("name").strip() if name_match else ""
+        # function_calls is a wrapper; find the nested invoke/function name.
+        if not name:
+            nested = re.search(r"<(?:invoke|function)\b(?P<a>[^>]*)>", body, re.I)
+            if nested:
+                nm = _ATTR_NAME_RE.search(nested.group("a") or "")
+                name = nm.group("name").strip() if nm else ""
+        if not name:
+            continue
+        params = {}
+        for pm in _PARAM_RE.finditer(body):
+            params[pm.group("key").strip()] = _coerce_tool_value(pm.group("val"))
+        # Some models put JSON arguments inside the invoke body.
+        if not params:
+            payload = body.strip()
+            try:
+                data = json.loads(payload)
+                params = data.get("input") or data.get("arguments") or data
+                if not isinstance(params, dict): params = {}
+            except Exception:
+                params = {}
+        found.append((name, params))
+        spans.append(match.span())
+    if not found:
+        return text, []
+    # Remove complete blocks from visible answer while preserving surrounding text.
+    out = text
+    for start, end in reversed(spans):
+        out = out[:start] + out[end:]
+    return out, found
+
+
 class WebToolParser:
     """Shared parser for prompt-based tool calls in XML format.
     Also supports auto-wrapping raw JSON tool calls if auto_wrap_json=True.
@@ -284,6 +395,19 @@ class WebToolParser:
         if "&" in self._raw_buf:
             self._raw_buf = _decode_webchat_entities(self._raw_buf)
         display = ""
+
+        # Recover complete non-Dulus XML dialects before the normal parser.
+        if not self._in_call:
+            cleaned, standalone = _extract_standalone_tool_calls(self._raw_buf)
+            if standalone:
+                self._raw_buf = ""
+                for name, inp in standalone:
+                    self.tool_calls.append({
+                        "id": f"call_pt_{len(self.tool_calls)}",
+                        "name": name,
+                        "input": inp,
+                    })
+                display += cleaned
 
         while True:
             if not self._in_call:
@@ -2808,7 +2932,7 @@ def stream_deepseek_web(
     import pathlib as _pl
     _ds_state_path = _pl.Path.home() / ".dulus" / "deepseek_chat_state.json"
     _ds_state = {}
-    if _ds_state_path.exists():
+    if _ds_state_path.exists() and not config.get("_deepseek_fresh_session"):
         try:
             with open(_ds_state_path, "r", encoding="utf-8") as _f:
                 _ds_state = json.load(_f)
@@ -2832,6 +2956,16 @@ def stream_deepseek_web(
     # Build conversation history
     manifest = _format_web_tool_manifest(tool_schemas, config, messages)
     last_user_msg = _consolidate_web_history(messages, manifest)
+    # DeepSeek Web uses a server-side chat session and accepts one prompt
+    # string. When a harvested chat_session_id exists, the separate `system`
+    # argument would otherwise be discarded. Re-inject it on every turn.
+    if system:
+        last_user_msg = (
+            "[DULUS SYSTEM INSTRUCTIONS]\n"
+            + system.strip()
+            + "\n[END DULUS SYSTEM INSTRUCTIONS]\n\n"
+            + last_user_msg
+        )
 
     # Build messages list (system + history + new user message)
     ds_messages = []
@@ -2868,6 +3002,12 @@ def stream_deepseek_web(
         _ds_state.get("parent_message_id")
         or config.get("deepseek_web_parent_id")
     )
+    if config.get("_deepseek_session_override"):
+        chat_session_id = config["_deepseek_session_override"]
+        parent_message_id = None
+    elif config.get("_deepseek_fresh_session"):
+        chat_session_id = None
+        parent_message_id = None
 
     # ── Headers ──────────────────────────────────────────────────────────
     headers = auth_data.get("headers", {}).copy()
@@ -2963,6 +3103,52 @@ def stream_deepseek_web(
             stream=True,
             timeout=120,
         )
+
+        # DeepSeek returns some session failures as HTTP 200 JSON instead of
+        # SSE. A harvested chat can be valid while its old chat_session_id has
+        # expired or been deleted. Retry once without the stale remote session
+        # so the agent can create a fresh conversation.
+        if "application/json" in (response.headers.get("content-type", "") or ""):
+            try:
+                body = response.json()
+                msg_raw = str(body.get("data", {}).get("biz_msg", ""))
+                if ("invalid chat session" in msg_raw.lower() or "invalid message id" in msg_raw.lower()) and not config.get("_deepseek_session_override"):
+                    yield TextChunk("[deepseek-web] Remote chat session expired — creating a fresh session…\n")
+                    try:
+                        create_headers = auth_data.get("headers", {}).copy()
+                        for h in ("Content-Length", "Accept-Encoding", "Content-Type"):
+                            create_headers.pop(h, None)
+                            create_headers.pop(h.lower(), None)
+                        create_headers["Authorization"] = token
+                        create_headers["Content-Type"] = "application/json"
+                        create_resp = requests.post(
+                            "https://chat.deepseek.com/api/v0/chat_session/create",
+                            headers=create_headers,
+                            cookies=cookies,
+                            json={"character_id": None},
+                            timeout=30,
+                        )
+                        created = create_resp.json().get("data", {}).get("biz_data", {}).get("chat_session", {})
+                        new_session = created.get("id")
+                    except Exception:
+                        new_session = None
+                    if not new_session:
+                        msg = f"[deepseek-web] Could not create a fresh chat session: {body}"
+                        yield TextChunk(msg)
+                        yield AssistantTurn(msg, [], 0, 0, error=True)
+                        return
+                    fresh = {**config, "_deepseek_session_override": new_session,
+                             "_deepseek_fresh_session": False,
+                             "deepseek_web_session_id": new_session,
+                             "deepseek_web_parent_id": None}
+                    yield from stream_deepseek_web(auth_file, model, system, messages, tool_schemas, fresh)
+                    return
+                msg = f"[deepseek-web] HTTP 200 error: {msg_raw or body}"
+            except Exception as exc:
+                msg = f"[deepseek-web] Invalid JSON response: {exc}"
+            yield TextChunk(msg)
+            yield AssistantTurn(msg, [], 0, 0, error=True)
+            return
 
         if response.status_code == 401:
             msg = "[deepseek-web] Auth error (401) — token expired. Run /harvest-deepseek."

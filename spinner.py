@@ -20,7 +20,7 @@ TOOL_SPINNER_PHRASES = [
     "🌪️ Blitzing through the bytecode...",
     "💫 Bending spacetime...",
     "🦅 Preying on bugs from above...",
-    "👁️ Dulus vision engaged...",
+    "👁️ NEMESIS vision engaged...",
     "🍗 Hunting for memory leaks...",
     "🪶 Shedding legacy code...",
     "🕹️ Try-catching mid-flight...",

@@ -67,46 +67,46 @@ DULUS_WARNING = "#ffd166"
 # ---------------------------------------------------------------------------
 
 _STATUS_READY = [
-    "🦅 Dulus is ready to fly!",
-    "🦅 Your feathered friend is here!",
-    "🪶 Tallons sharp and ready!",
-    "🦅 Dulus is perched and ready!",
+    "🦅 NEMESIS est prêt à voler !",
+    "🦅 L’aigle de la justice est prêt !",
+    "🪶 Serres affûtées et prêtes !",
+    "🦅 NEMESIS est prêt !",
 ]
 
 _STATUS_THINKING = [
-    "🦅 Dulus is thinking...",
-    "🪶 Ruffling feathers, processing...",
-    "🦅 Scanning the horizon...",
-    "🪶 Sharpening talons on your request...",
-    "🦅 Diving deep into the code...",
-    "🪶 Hatching a solution...",
+    "🦅 NEMESIS réfléchit…",
+    "🪶 Je traite ta demande…",
+    "🦅 J’analyse l’horizon…",
+    "🪶 J’affûte la solution…",
+    "🦅 Je plonge dans le code…",
+    "🪶 Je fais éclore une solution…",
 ]
 
 _STATUS_WORKING = [
-    "🦅 Dulus is working...",
-    "🪶 Flapping through the data...",
-    "🦅 Preying on bugs...",
-    "🔥 Cooking up a response...",
+    "🦅 NEMESIS travaille…",
+    "🪶 Je parcours les données…",
+    "🦅 Je traque les bugs…",
+    "🔥 Je prépare une réponse…",
 ]
 
 _STATUS_SUCCESS = [
-    "🦅 All done! That was smooth!",
-    "🎉 Crushed it! High wing!",
-    "✨ Nailed the landing!",
-    "🚀 Another win for the nest!",
+    "🦅 Terminé ! Exécution impeccable.",
+    "🎉 Réussi ! Aile haute !",
+    "✨ Atterrissage réussi !",
+    "🚀 Une nouvelle victoire pour le nid !",
 ]
 
 _STATUS_ERROR = [
-    "🦅 Hmm, hit some turbulence...",
-    "🛡️ Don't worry, we got this!",
-    "🦅 Let's regroup and try again!",
+    "🦅 Une turbulence est survenue…",
+    "🛡️ Pas d’inquiétude, on va régler ça.",
+    "🦅 Reprenons calmement et réessayons.",
 ]
 
 _EMPTY_STATE_MESSAGES = [
-    "🦅 **Welcome!** I'm Dulus, your AI companion.\n\nWhat would you like to build today?",
-    "🪶 **Hey there!** Your feathered friend is ready.\n\nAsk me anything -- coding, debugging, brainstorming!",
-    "🦅 **The nest is ready!**\n\nLet's turn your ideas into reality. What's on your mind?",
-    "🔥 **Dulus is in the house!**\n\nReady to code, create, and ship. What are we working on?",
+    "🦅 **Bienvenue !** Je suis NEMESIS, l’aigle de la justice.\n\nQue veux-tu construire aujourd’hui ?",
+    "🪶 **Bonjour !** NEMESIS est prêt.\n\nPose une question sur le code, le débogage ou tes idées.",
+    "🦅 **Le nid est prêt !**\n\nTransformons tes idées en réalité. Que veux-tu construire ?",
+    "🔥 **NEMESIS est en place !**\n\nPrêt à coder, créer et livrer. Sur quoi travaillons-nous ?",
 ]
 
 
@@ -193,7 +193,7 @@ class TypingIndicator(ctk.CTkFrame):
         self._frame_idx = 0
         self._label = ctk.CTkLabel(
             self,
-            text="🦅 Dulus is thinking...",
+            text="🦅 NEMESIS réfléchit…",
             font=("Segoe UI", 12, "italic"),
             text_color=DULUS_DIM,
         )
@@ -371,7 +371,7 @@ class EmptyState(ctk.CTkFrame):
         # Quick action hint
         ctk.CTkLabel(
             container,
-            text="💡 Type a message below to get started!",
+            text="💡 Écris un message ci-dessous pour commencer.",
             font=("Segoe UI", 11),
             text_color=DULUS_ORANGE,
         ).pack()
@@ -413,7 +413,7 @@ class _PermissionDialog(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text="Permission Required",
+            text="Autorisation requise",
             font=("Segoe UI", 16, "bold"),
             text_color=DULUS_ORANGE,
         ).pack(pady=(4, 10))
@@ -431,7 +431,7 @@ class _PermissionDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame,
-            text="Deny",
+            text="Refuser",
             font=("Segoe UI", 12, "bold"),
             fg_color=t["border"],
             hover_color=DULUS_ERROR,
@@ -441,7 +441,7 @@ class _PermissionDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame,
-            text="Allow",
+            text="Autoriser",
             font=("Segoe UI", 12, "bold"),
             fg_color=DULUS_ORANGE,
             hover_color=DULUS_ORANGE_LIGHT,
@@ -450,7 +450,7 @@ class _PermissionDialog(ctk.CTkToplevel):
         ).pack(side="left", padx=10)
 
     def _setup_window(self, parent: ctk.CTk) -> None:
-        self.title("Permission Required")
+        self.title("Autorisation requise")
         self.geometry("500x250")
         self.transient(parent)
         self.grab_set()
@@ -654,7 +654,7 @@ def launch_gui(config: dict | None = None, initial_prompt: str | None = None) ->
 
         app.set_active_session(session_id)
         app.sidebar.update_context_bar()
-        app.set_status("🦅 Session ready (context deferred)", t["success"])
+        app.set_status("🦅 Session prête (contexte différé)", t["success"])
 
     def _on_settings() -> None:
         from gui.settings_dialog import SettingsDialog
@@ -664,10 +664,29 @@ def launch_gui(config: dict | None = None, initial_prompt: str | None = None) ->
         bridge.set_model(model)
         app.set_model(model)
 
+    def _on_attach() -> None:
+        from tkinter import filedialog
+        paths = filedialog.askopenfilenames(title="Joindre des fichiers")
+        if paths:
+            app.input_box.insert("end", "\n[Fichiers joints]\n" + "\n".join(f"- {p}" for p in paths) + "\n")
+            app.focus_input()
+
+    def _provider_status() -> None:
+        try:
+            from providers import detect_provider, get_api_key, PROVIDERS
+            pname = detect_provider(bridge.config.get("model", ""))
+            ready = bool(get_api_key(pname, bridge.config)) or PROVIDERS.get(pname, {}).get("type") in ("ollama", "lmstudio")
+            app.sidebar.set_provider_status(f"Provider : {pname} — {'connecté' if ready else 'sans clé'}", "#4ade80" if ready else "#facc15")
+        except Exception as exc:
+            app.sidebar.set_provider_status(f"Provider : erreur ({exc})", "#fb7185")
+
     app.on_send = _on_send
     app.on_new_chat = _on_new_chat
     app.sidebar.on_settings = _on_settings
+    app.sidebar.on_provider_test = _provider_status
     app.on_model_change = _on_model_change
+    app.on_attach = _on_attach
+    app.on_stop = bridge.stop_generation
     app.on_session_select = _on_session_select
 
     # Load existing sessions into sidebar (async so GUI shows immediately)
@@ -720,10 +739,10 @@ def launch_gui(config: dict | None = None, initial_prompt: str | None = None) ->
                     app.show_thinking()
 
                 elif etype == "tool_start":
-                    app.add_tool_call(event.get("name", "tool"), "running")
+                    app.add_tool_call(event.get("name", "tool"), "running", str(event.get("inputs", "")))
 
                 elif etype == "tool_end":
-                    app.add_tool_call(event.get("name", ""), "done")
+                    app.add_tool_call(event.get("name", ""), "done", str(event.get("result", "")))
 
                 elif etype == "turn_done":
                     app.hide_thinking()
@@ -750,9 +769,9 @@ def launch_gui(config: dict | None = None, initial_prompt: str | None = None) ->
                     import random
                     error_msg = random.choice(_STATUS_ERROR)
                     app.chat.add_assistant_message(
-                        f"**{error_msg}**\n\nError: {event.get('message', 'Unknown error')}"
+                        f"**{error_msg}**\n\nErreur : {event.get('message', 'Erreur inconnue')}"
                     )
-                    app.set_status("🦅 Turbulence detected", t["error"])
+                    app.set_status("🦅 Turbulence détectée", t["error"])
 
         except queue.Empty:
             pass
@@ -781,10 +800,10 @@ def launch_gui(config: dict | None = None, initial_prompt: str | None = None) ->
     except Exception as exc:
         app.chat.add_assistant_message(
             f"**🦅 Oh no!** I couldn't start my engine...\n\n"
-            f"Could not start Dulus bridge: {exc}\n\n"
-            f"Try running `/doctor` to diagnose the issue!"
+            f"Impossible de démarrer le moteur NEMESIS: {exc}\n\n"
+            f"Lance `/doctor` pour diagnostiquer le problème !"
         )
-        app.set_status("🦅 Engine trouble", t["error"])
+        app.set_status("🦅 Problème du moteur", t["error"])
 
     # ------------------------------------------------------------------
     # Initial prompt

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dulus — Next-gen Python Autonomous Agent.
+NEMESIS — Next-gen Python Autonomous Agent.
 
 Usage:
   python dulus.py [options] [prompt]
@@ -14,7 +14,7 @@ Options:
   --version            Print version and exit
   -h, --help           Show this help message
   
-  -c, --cmd COMMAND    Execute a Dulus slash command and exit (no REPL)
+  -c, --cmd COMMAND    Execute a NEMESIS slash command and exit (no REPL)
                        Useful for scripting and automation.
                        Examples:
                          dulus --cmd "plugin reload"
@@ -65,7 +65,7 @@ Slash commands in REPL:
   /memory purge           Total wipe of memories EXCEPT the 'Soul'
   /memory purge-soul      Total wipe of EVERYTHING (Danger)
   /memory consolidate     Extract long-term insights from session via AI
-  /skills           List active Dulus skills (loaded each turn)
+  /skills           List active NEMESIS skills (loaded each turn)
   /skill            Browse + manage Anthropic/ClawHub/skills.sh skills
   /skill list       Show installed + browse skills (anthropic/awesome/composio/skillssh/local)
   /skill get <plugin/skill>  Install a skill (e.g. /skill get skillssh/mattpocock/skills/tdd)
@@ -88,7 +88,7 @@ Slash commands in REPL:
   /plugin enable/disable name  Toggle plugin
   /plugin update name        Update a plugin
   /plugin recommend [ctx]    Recommend plugins for context
-  /update           Check PyPI and update Dulus if a newer version exists
+  /update           Check PyPI and update NEMESIS if a newer version exists
   /update now       Force update to the latest release
   /update on|off    Toggle the automatic update check at startup (default: on)
   /update status    Show installed version, latest, and auto-check setting
@@ -101,7 +101,7 @@ Slash commands in REPL:
   /voice            Record voice input, transcribe, and submit
   /voice status     Show available recording and STT backends
   /voice lang <code>  Set STT language (e.g. zh, en, ja — default: auto)
-  /wake on|off      Toggle wake-word (hotword) detection — say "Hey Dulus"
+  /wake on|off      Toggle wake-word (hotword) detection — say "Hey NEMESIS"
   /wake status      Show wake-word listener state
   /wake phrases     List recognised wake phrases
   /wake calibrate   Measure your mic levels for 5s and suggest a threshold
@@ -122,7 +122,7 @@ Slash commands in REPL:
   /roundtable       Start a multi-model roundtable discussion
   /fork             Fork session at a given turn
   /undo             Undo last turn
-  /workspace [cmd]  Manage Dulus workspaces (switch/list/default)
+  /workspace [cmd]  Manage NEMESIS workspaces (switch/list/default)
   /add-dir [path]   Manage additional workspace directories
   /import <file>    Import conversation from file or session
   /harvest          Harvest Claude.ai cookies (alias: /harvest-claude)
@@ -133,7 +133,7 @@ Slash commands in REPL:
   /kimi_chats       List recent Kimi conversations
   /webchat [port]   Spawn web chat UI (background Flask server)
   /webchat stop     Kill the webchat server
-  /sandbox          Open Dulus Sandbox OS in browser (starts webchat if needed)
+  /sandbox          Open NEMESIS Sandbox OS in browser (starts webchat if needed)
   /sandbox stop     Stop the webchat server
   /rtk [on|off]     Toggle RTK token-optimized shell command rewriting
   /exit /quit Exit
@@ -169,14 +169,14 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ── Suppress noisy third-party startup warnings ──────────────────────────
-# These don't affect functionality but pollute every Dulus boot (REPL,
+# These don't affect functionality but pollute every NEMESIS boot (REPL,
 # daemon, --print, every shell call). Filtered globally so logs stay clean.
 import warnings as _warnings
 # requests >= 2.32 nags about urllib3/chardet version pins on Python 3.13+.
 _warnings.filterwarnings("ignore", message=r".*urllib3.*")
 _warnings.filterwarnings("ignore", message=r".*chardet.*charset_normalizer.*")
 _warnings.filterwarnings("ignore", message=r".*RequestsDependencyWarning.*")
-# Dulus's own dev-license warning — only relevant if you're building
+# NEMESIS's own dev-license warning — only relevant if you're building
 # license keys for production, not noise we want on every boot.
 _warnings.filterwarnings("ignore", message=r".*DULUS_LICENSE_SECRET.*")
 # Catch-all: any RequestsDependencyWarning by category, regardless of msg.
@@ -192,7 +192,7 @@ _warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"pkg_res
 # dependency that touches multiprocessing.synchronize (notably
 # faster-whisper / CTranslate2 worker pools) exits without explicitly
 # closing its named POSIX semaphores. The OS reclaims them at exit
-# anyway; nothing in Dulus actually leaks. Silence the noise so users
+# anyway; nothing in NEMESIS actually leaks. Silence the noise so users
 # don't think the CLI is broken on Linux/WSL when shutting down.
 _warnings.filterwarnings(
     "ignore",
@@ -222,7 +222,7 @@ except ImportError:
 try:
     from common import C
 except ImportError:
-    # Fallback uses Dulus orange (default theme accent) instead of generic cyan
+    # Fallback uses NEMESIS orange (default theme accent) instead of generic cyan
     _DULUS_ORANGE = "\033[38;2;255;135;0m"
     C = {"cyan": _DULUS_ORANGE, "green": _DULUS_ORANGE, "blue": _DULUS_ORANGE,
          "bold": "\033[1m", "reset": "\033[0m", "gray": "\033[90m", "dim": "\033[2m"}
@@ -230,7 +230,7 @@ except ImportError:
 # ── License gate (KevRojo — tu esfuerzo, tu leche) ──────────────────────────
 from license_manager import LicenseManager, LicenseTier
 
-# Eagerly extract the sandbox bundle on Dulus boot in a daemon thread, so by
+# Eagerly extract the sandbox bundle on NEMESIS boot in a daemon thread, so by
 # the time the user (or the webchat server, or a sub-agent) asks for
 # /sandbox/ the static files are already sitting at ~/.dulus/sandbox/.
 # Silent, no prompt, no notification — exactly the UX we want.
@@ -855,8 +855,8 @@ _HELP_PAGES = [
         ("/cwd [path]",  "Show or change working directory"),
         ("/copy [file]", "Copy last response (or file) to clipboard"),
         ("/shell [cmd|on|off]", "Shell mode toggle or one-shot command"),
-        ("/update [now|on|off]", "Self-update Dulus from PyPI (auto-check at startup)"),
-        ("/exit /quit",  "Exit Dulus"),
+        ("/update [now|on|off]", "Self-update NEMESIS from PyPI (auto-check at startup)"),
+        ("/exit /quit",  "Exit NEMESIS"),
     ]),
     ("Session", [
         ("/save [name]",  "Save session to file (any name)"),
@@ -866,7 +866,7 @@ _HELP_PAGES = [
         ("/cost",         "Show API cost this session"),
         ("/fork",         "Fork session at a given turn"),
         ("/undo",         "Undo last turn"),
-        ("/workspace [cmd]", "Manage Dulus workspaces (switch/list/default)"),
+        ("/workspace [cmd]", "Manage NEMESIS workspaces (switch/list/default)"),
         ("/import <file>","Import conversation from file/session"),
         ("/add-dir [path]","Manage additional workspace directories"),
         ("/batch",        "Manage Kimi Batch tasks"),
@@ -883,7 +883,7 @@ _HELP_PAGES = [
         ("/soul [name]",         "List souls / switch active soul"),
     ]),
     ("Skills · Plugins · Agents · MCP · Tasks", [
-        ("/skills",                 "List active Dulus skills"),
+        ("/skills",                 "List active NEMESIS skills"),
         ("/skill list",             "Browse installed + available skills"),
         ("/skill list skillssh",    "Browse the skills.sh open directory (100K+)"),
         ("/skill get <slug>",       "Install an Anthropic/ClawHub/skills.sh skill"),
@@ -907,7 +907,7 @@ _HELP_PAGES = [
         ("/voice",                  "Record voice → transcribe → submit"),
         ("/voice status",           "Show recording + STT backends"),
         ("/voice lang <code>",      "Set STT language (zh/en/ja/auto)"),
-        ("/wake on|off",            "Toggle wake-word ('Hey Dulus')"),
+        ("/wake on|off",            "Toggle wake-word ('Hey NEMESIS')"),
         ("/wake status",            "Show wake-word listener state"),
         ("/wake phrases",           "List recognised wake phrases"),
         ("/wake calibrate",         "Measure mic 5s, suggest threshold"),
@@ -918,12 +918,12 @@ _HELP_PAGES = [
     ("Web · Sandbox · Cloud · Harvest", [
         ("/webchat [port]",         "Spawn web chat UI (Flask)"),
         ("/webchat stop",           "Kill the webchat server"),
-        ("/sandbox",                "Open Dulus Sandbox OS in browser"),
+        ("/sandbox",                "Open NEMESIS Sandbox OS in browser"),
         ("/sandbox stop",           "Stop the sandbox server"),
         ("/cloudsave",              "Upload current session to GitHub Gist"),
         ("/cloudsave setup <token>","Configure GitHub token"),
         ("/cloudsave auto on|off",  "Toggle auto-upload on exit"),
-        ("/cloudsave list",         "List your Dulus Gists"),
+        ("/cloudsave list",         "List your NEMESIS Gists"),
         ("/cloudsave load <id>",    "Download + load a session from Gist"),
         ("/harvest",                "Harvest Claude.ai cookies"),
         ("/harvest-kimi",           "Harvest Kimi consumer tokens"),
@@ -988,7 +988,7 @@ def _render_help_page_telegram(config) -> None:
     Telegram users can scroll the message; pagination would need extra UX
     wiring through the bot. Toggles are appended at the end once.
     """
-    print("Dulus — Commands\n")
+    print("NEMESIS — Commands\n")
     for title, items in _HELP_PAGES:
         print(f"━━ {title} ━━")
         for cmd, desc in items:
@@ -1003,7 +1003,7 @@ def cmd_help(_args: str, _state, config) -> bool:
     # (no live keyboard for n/p/q, and the prompt would hang the bridge).
     # One flat categorized print works everywhere — terminal, Telegram,
     # piped to a file, log capture, the lot.
-    print(clr("  Dulus — Commands", "cyan", "bold"))
+    print(clr("  NEMESIS — Commands", "cyan", "bold"))
     print(clr("  " + "─" * 60, "dim"))
     for title, items in _HELP_PAGES:
         print()
@@ -1435,7 +1435,7 @@ def _save_synthesis(state, out_file: str) -> None:
 
 
 def _print_dulus_banner(config: dict, with_logo: bool = True) -> None:
-    """Reprint the Dulus logo + info box (used by startup and /clear)."""
+    """Réaffiche le logo NEMESIS et le résumé de session (used by startup and /clear)."""
     from providers import detect_provider
     if with_logo:
         logo = globals().get("_DULUS_LOGO_CACHED")
@@ -1449,7 +1449,7 @@ def _print_dulus_banner(config: dict, with_logo: bool = True) -> None:
     prov_clr  = clr(f"({pname})", "dim")
     pmode     = clr(config.get("permission_mode", "auto"), "yellow")
     ver_clr   = clr(f"v{VERSION}", "green")
-    print(clr("  ╭─ ", "dim") + clr("Dulus ", "cyan", "bold") + ver_clr + clr(" ─────────────────────────────────╮", "dim"))
+    print(clr("  ╭─ ", "dim") + clr("NEMESIS — L’aigle de la justice ", "cyan", "bold") + ver_clr + clr(" ─────────────────────────────────╮", "dim"))
     print(clr("  │", "dim") + clr("  Model: ", "dim") + model_clr + " " + prov_clr)
     print(clr("  │", "dim") + clr("  Permissions: ", "dim") + pmode)
     print(clr("  │", "dim") + clr("  /model to switch · /help for commands", "dim"))
@@ -2080,7 +2080,7 @@ def cmd_daemon(args: str, _state, config) -> bool:
     return True
 
 def cmd_bg(args: str, _state, config) -> bool:
-    """Background Dulus via tmux session.
+    """Background NEMESIS via tmux session.
 
     /bg start [--web-port PORT]  — create detached tmux session running daemon
     /bg stop                     — kill tmux session
@@ -2131,7 +2131,7 @@ def cmd_bg(args: str, _state, config) -> bool:
         tmux_alive = _tmux_session_exists()
         ipc = _ipc_alive()
         if tmux_alive and ipc:
-            ok("Dulus background daemon: RUNNING")
+            ok("NEMESIS background daemon: RUNNING")
             info(f"  IPC: 127.0.0.1:{DULUS_IPC_PORT} (responding)")
             info(f"  Web: http://127.0.0.1:{config.get('_webchat_port', 5000)}/")
             info(f"  Attach: tmux attach -t {TMUX_SESSION}  (Ctrl+B D to detach)")
@@ -2139,9 +2139,9 @@ def cmd_bg(args: str, _state, config) -> bool:
             warn("tmux session exists but IPC not responding (still booting?)")
         elif ipc:
             info("No tmux session running, but IPC port is in use.")
-            info(f"  Likely your own Dulus REPL on port {DULUS_IPC_PORT}.")
+            info(f"  Likely your own NEMESIS REPL on port {DULUS_IPC_PORT}.")
         else:
-            info("Dulus background daemon: NOT RUNNING")
+            info("NEMESIS background daemon: NOT RUNNING")
         return True
 
     # ── /bg stop / kill ───────────────────────────────────────────────────
@@ -2152,7 +2152,7 @@ def cmd_bg(args: str, _state, config) -> bool:
         try:
             _sp.run(["tmux", "kill-session", "-t", TMUX_SESSION],
                     capture_output=True, timeout=5)
-            ok("Dulus background stopped.")
+            ok("NEMESIS background stopped.")
         except Exception as e:
             err(f"Failed to kill tmux session: {e}")
         return True
@@ -2200,7 +2200,7 @@ def cmd_bg(args: str, _state, config) -> bool:
 
         if _ipc_alive():
             warn(f"Port {DULUS_IPC_PORT} is in use by another process.")
-            info("Run `/bg kill` first if it's a stale daemon, or close the other Dulus.")
+            info("Run `/bg kill` first if it's a stale daemon, or close the other NEMESIS.")
             return True
 
         # Parse --web-port
@@ -2269,7 +2269,7 @@ def cmd_bg(args: str, _state, config) -> bool:
             info(f"  Cleanup: /bg kill")
             return True
 
-        ok(f"Dulus background started in tmux session '{TMUX_SESSION}'.")
+        ok(f"NEMESIS background started in tmux session '{TMUX_SESSION}'.")
         info(f"  IPC: 127.0.0.1:{DULUS_IPC_PORT}")
         info(f"  Web: http://127.0.0.1:{web_port}/")
         info(f"  Attach: tmux attach -t {TMUX_SESSION}  (Ctrl+B D to detach)")
@@ -2390,7 +2390,7 @@ def cmd_webchat(args: str, state, config) -> bool:
 
 
 def cmd_sandbox(args: str, state, config) -> bool:
-    """Open the Dulus Sandbox OS in the browser.
+    """Open the NEMESIS Sandbox OS in the browser.
 
     /sandbox          — Ensure webchat is running, open /sandbox in browser
     /sandbox stop     — Alias for /webchat stop
@@ -2432,7 +2432,7 @@ def cmd_gui(_args: str, _state, config) -> bool:
     """Launch the desktop GUI from the REPL."""
     try:
         from dulus_gui import launch_gui
-        info("Launching Dulus GUI...")
+        info("Launching NEMESIS GUI...")
         # Run GUI in a separate thread so the REPL stays alive
         import threading
         t = threading.Thread(
@@ -2525,7 +2525,7 @@ def _normalize_thinking_level(value) -> int:
     return lvl
 
 def cmd_lang(args: str, state, config) -> bool:
-    """Switch the language Dulus replies in.
+    """Switch the language NEMESIS replies in.
 
     Usage:
       /lang                     — show current language and a curated picker
@@ -2840,7 +2840,7 @@ def cmd_schema_autoload(_args: str, _state, config) -> bool:
     from config import save_config
     config["schema_autoload"] = not config.get("schema_autoload", True)
     state_str = "ON" if config["schema_autoload"] else "OFF"
-    ok(f"Schema autoload at startup: {state_str}  (restart Dulus to take effect)")
+    ok(f"Schema autoload at startup: {state_str}  (restart NEMESIS to take effect)")
     save_config(config)
     return True
 
@@ -2923,7 +2923,7 @@ def _report_harvest_browser_error(label: str, exc: Exception) -> None:
         info("Install the browser and Linux runtime dependencies once with:")
         info("  python -m playwright install chromium")
         info("  sudo python -m playwright install-deps chromium")
-        info("Then restart Dulus. You can also set DULUS_BROWSER_EXECUTABLE=/path/to/chrome.")
+        info("Then restart NEMESIS. You can also set DULUS_BROWSER_EXECUTABLE=/path/to/chrome.")
     else:
         err(f"{label} Harvest failed: {type(exc).__name__}: {exc}")
 
@@ -3442,7 +3442,7 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
         # capture setup explicit and actionable instead of crashing the REPL.
         frozen = bool(getattr(sys, "frozen", False))
         if frozen:
-            err("This binary was built without Playwright. Download the latest Dulus binary "
+            err("This binary was built without Playwright. Download the latest NEMESIS binary "
                 "or run the source version from your virtual environment: "
                 "python -m playwright install chromium && python dulus.py")
             return True
@@ -4014,7 +4014,7 @@ def cmd_claude_chats(args: str, _state, config) -> bool:
 def cmd_hide_sender(_args: str, _state, config) -> bool:
     """Toggle echoing your typed message above the sticky input bar.
 
-    ON  → message disappears on send; output area shows only Dulus's responses
+    ON  → message disappears on send; output area shows only NEMESIS's responses
           (use /history to recall what you typed).
     OFF → your message stays visible above as `» <msg>`.
     """
@@ -4077,13 +4077,13 @@ def cmd_sticky_input(_args: str, _state, config) -> bool:
     from config import save_config
     config["sticky_input"] = not config.get("sticky_input", True)
     state_str = "ON" if config["sticky_input"] else "OFF"
-    ok(f"Sticky input bar: {state_str}  (restart Dulus to take effect)")
+    ok(f"Sticky input bar: {state_str}  (restart NEMESIS to take effect)")
     save_config(config)
     return True
 
 
 def cmd_theme(args: str, _state, config) -> bool:
-    """Switch the Dulus color palette. `/theme` lists, `/theme <name>` applies."""
+    """Switch the NEMESIS color palette. `/theme` lists, `/theme <name>` applies."""
     from config import save_config
     import common as _cm
     name = (args or "").strip().lower()
@@ -4302,7 +4302,7 @@ def _apply_workspace(config: dict) -> None:
 
 
 def cmd_workspace(args: str, _state, config) -> bool:
-    """Manage Dulus workspaces under ~/.dulus/workspaces.
+    """Manage NEMESIS workspaces under ~/.dulus/workspaces.
 
     /workspace                — show current workspace + cwd
     /workspace current        — same as above
@@ -4322,7 +4322,7 @@ def cmd_workspace(args: str, _state, config) -> bool:
         if current:
             info(f"Workspace: {current}")
         else:
-            info("No estás dentro de un workspace de Dulus.")
+            info("No estás dentro de un workspace de NEMESIS.")
         info(f"Working directory: {os.getcwd()}")
         return True
 
@@ -4531,7 +4531,7 @@ def cmd_exit(_args: str, _state, config) -> bool:
     try:
         if _state.messages and _state.turn_count > 1:
             print(
-                clr("\n  [Dulus is still awake] ", "cyan")
+                clr("\n  [NEMESIS is still awake] ", "cyan")
                 + clr("Consolidate memories before leaving? [y/N] ", "white", "bold"),
                 end="", flush=True,
             )
@@ -4555,7 +4555,7 @@ def cmd_exit(_args: str, _state, config) -> bool:
                     ok(f"Consolidated {len(saved)} memories: {', '.join(saved)}")
                 else:
                     info("No new insights to consolidate.")
-                # AI file-miner (creates more local .md) when Dulus toggle mem_palace is ON.
+                # AI file-miner (creates more local .md) when NEMESIS toggle mem_palace is ON.
                 # Note: this is NOT the mempalace package itself — that is scheduled below.
                 if config.get("mem_palace", True):
                     fresh = new_memory_files(snap)
@@ -4968,9 +4968,9 @@ def _print_background_notifications(state=None):
                     with open(fp, "r", encoding="utf-8") as f:
                         job = json.load(f)
                     if job.get("status") in ("completed", "failed"):
-                        # PID ownership check: only the Dulus instance that launched
+                        # PID ownership check: only the NEMESIS instance that launched
                         # this job should claim it. This prevents cross-instance
-                        # notification theft when 2+ Duluss share ~/.dulus/jobs/.
+                        # notification theft when 2+ NEMESISs share ~/.dulus/jobs/.
                         owner_pid = job.get("owner_pid")
                         if owner_pid and owner_pid != os.getpid():
                             # Looser check: if the owner PID is already dead,
@@ -4995,7 +4995,7 @@ def _print_background_notifications(state=None):
                                     is_alive = False
                             
                             if is_alive:
-                                continue  # This job definitely belongs to another ACTIVE Dulus instance
+                                continue  # This job definitely belongs to another ACTIVE NEMESIS instance
                         # Archive to disk FIRST — prevents race condition where
                         # sentinel thread + main loop both read "completed" simultaneously
                         job_status = job["status"]
@@ -5042,7 +5042,7 @@ def _print_background_notifications(state=None):
 
 
 # ── IPC server: shared session via TCP socket ─────────────────────────────
-# When a Dulus REPL or daemon is running, it listens on 127.0.0.1:5151. Any
+# When a NEMESIS REPL or daemon is running, it listens on 127.0.0.1:5151. Any
 # `dulus "..."` invocation from another shell first probes this port — if the
 # server answers, the prompt is forwarded over the wire and the response is
 # streamed back, so multiple shells share the SAME live session (history,
@@ -5078,7 +5078,7 @@ def _ipc_server_loop(config, state):
     try:
         sock.bind((DULUS_IPC_HOST, DULUS_IPC_PORT))
     except OSError:
-        return  # another Dulus already listening — fine, we're the client one
+        return  # another NEMESIS already listening — fine, we're the client one
     sock.listen(4)
     sock.settimeout(1.0)
     config["_ipc_listening"] = True
@@ -5367,7 +5367,7 @@ def cmd_skill(args: str, state, config) -> bool:
 
     # ── /skill (no args) = show help + installed list ─────────────────────
     if not subcmd:
-        print(clr("\n  Dulus Skill Manager", "cyan", "bold"))
+        print(clr("\n  NEMESIS Skill Manager", "cyan", "bold"))
         print(f"  {clr('Skills directory:', 'dim')} {str(_Path.home() / '.dulus/skills')}")
         print(f"  {clr('/skill list local [q]', 'yellow'):30s} Browse available marketplace skills")
         print(f"  {clr('/skill list skillssh [q]', 'yellow'):30s} Browse skills.sh open directory")
@@ -5390,7 +5390,7 @@ def cmd_skill(args: str, state, config) -> bool:
         # Interactive picker when called with no source — pick where to look.
         if not rest:
             print(clr("\n  Pick a source:", "cyan", "bold"))
-            print(f"  1) {clr('dulus', 'green', 'bold')}     — 🦅 kevrojo/dulus-skills — THE Dulus community marketplace (skills+plugins+memories)")
+            print(f"  1) {clr('dulus', 'green', 'bold')}     — 🦅 kevrojo/dulus-skills — THE NEMESIS community marketplace (skills+plugins+memories)")
             print(f"  2) {clr('awesome', 'yellow')}   — alirezarezvani/claude-skills (~235 skills, live from GitHub)")
             print(f"  3) {clr('composio', 'yellow')}  — Composio Tool Router (1000+ apps via API)")
             print(f"  4) {clr('local', 'yellow')}     — Anthropic + awesome marketplaces on disk (~/.claude/...)")
@@ -5410,17 +5410,17 @@ def cmd_skill(args: str, state, config) -> bool:
             if "--fast" in query.split():
                 fast = True
                 query = " ".join(t for t in query.split() if t != "--fast").strip()
-            info("🦅 Fetching Dulus community skills from kevrojo/dulus-skills...")
+            info("🦅 Fetching NEMESIS community skills from kevrojo/dulus-skills...")
             skills = list_dulus_remote(query, with_descriptions=not fast)
             if not skills:
-                err("No Dulus community skills found (empty repo, network, or rate-limit).")
+                err("No NEMESIS community skills found (empty repo, network, or rate-limit).")
                 info("Be the first — upload yours to https://github.com/kevrojo/dulus-skills")
                 return True
             lines = [
                 f"  {clr(s['id'], 'green'):55s}  {s.get('description', '')[:80]}"
                 for s in skills
             ]
-            header = f"Dulus community skills ({len(skills)})" + (f" matching '{query}'" if query else "")
+            header = f"NEMESIS community skills ({len(skills)})" + (f" matching '{query}'" if query else "")
             _pager(f"{header} — /skill get <id> to install — n=next q=quit", lines)
             return True
 
@@ -5486,7 +5486,7 @@ def cmd_skill(args: str, state, config) -> bool:
             query = rest[5:].strip()
             skills = list_local(query)
             # Fall back to awesome remote when local marketplaces aren't on
-            # disk (i.e. user installed Dulus without Claude Code present).
+            # disk (i.e. user installed NEMESIS without Claude Code present).
             if not skills and not query:
                 info("No local marketplace on disk — fetching awesome from GitHub...")
                 skills = list_awesome_remote()
@@ -5556,7 +5556,7 @@ def cmd_skill(args: str, state, config) -> bool:
             info(f"Dumping all skills to {target} (awesome may take a few seconds)...")
 
             lines: list[str] = []
-            lines.append(f"# Dulus skill catalog — {len(lines)} sections, generated by /skill list dump")
+            lines.append(f"# NEMESIS skill catalog — {len(lines)} sections, generated by /skill list dump")
             lines.append("# Format: <source>\\t<id>\\t<description>")
             lines.append("# Grep against this file before suggesting custom code — there's often a skill already.")
             lines.append("")
@@ -5649,7 +5649,7 @@ def cmd_skill(args: str, state, config) -> bool:
             success, msg = install_awesome_remote(rest)
         else:
             success, msg = install_local(rest)
-            # Fallback chain: local → Dulus community → awesome → skillssh
+            # Fallback chain: local → NEMESIS community → awesome → skillssh
             if not success:
                 success, msg = install_dulus_remote(rest)
             if not success:
@@ -5881,7 +5881,7 @@ def cmd_mcp(args: str, _state, config) -> bool:
             total_tools += 1
 
     if total_tools:
-        info(f"Total: {total_tools} MCP tool(s) available to Dulus")
+        info(f"Total: {total_tools} MCP tool(s) available to NEMESIS")
     return True
 
 
@@ -6663,7 +6663,7 @@ def _tg_poll_loop(token: str, chat_ids, config: dict):
         if cid in fresh:
             authorized_cache = fresh
             if cid not in welcomed:
-                _tg_send(token, cid, "🟢 Dulus is now online for you. Send me a message.")
+                _tg_send(token, cid, "🟢 NEMESIS is now online for you. Send me a message.")
                 welcomed.add(cid)
             return True
         return False
@@ -6682,7 +6682,7 @@ def _tg_poll_loop(token: str, chat_ids, config: dict):
         pass
     # Notify all configured users that the bot is online
     for cid in chat_ids:
-        _tg_send(token, cid, "🟢 Dulus\nSend me a message and I'll process it.")
+        _tg_send(token, cid, "🟢 NEMESIS\nSend me a message and I'll process it.")
 
     while not _telegram_stop.is_set():
         try:
@@ -6917,7 +6917,7 @@ def _tg_poll_loop(token: str, chat_ids, config: dict):
                     except Exception:
                         fresh_config = config
                     if not fresh_config.get("daemon"):
-                        _tg_send(chat_token, chat_id, "🔴 No REPL session active. Use `/daemon on` to allow external triggers, or open Dulus locally.")
+                        _tg_send(chat_token, chat_id, "🔴 No REPL session active. Use `/daemon on` to allow external triggers, or open NEMESIS locally.")
                         return
                     import subprocess, os, sys
                     dulus_script = os.path.abspath(sys.argv[0] if sys.argv[0].endswith('.py') else __file__)
@@ -6931,13 +6931,13 @@ def _tg_poll_loop(token: str, chat_ids, config: dict):
                         err_out = proc.stderr.strip()
                         full = (out + "\n" + err_out).strip()
                         if not full:
-                            full = "⚠ No response from Dulus."
+                            full = "⚠ No response from NEMESIS."
                         MAX_TG = 4000
                         if len(full) > MAX_TG:
                             full = full[:MAX_TG] + "\n\n…truncated"
                         _tg_send(chat_token, chat_id, full)
                     except Exception as e:
-                        _tg_send(chat_token, chat_id, f"⚠ Dulus process error: {e}")
+                        _tg_send(chat_token, chat_id, f"⚠ NEMESIS process error: {e}")
 
                 threading.Thread(target=_bg_runner, args=(text, token, chat_id), daemon=True).start()
         except Exception:
@@ -6948,7 +6948,7 @@ def _tg_poll_loop(token: str, chat_ids, config: dict):
 
 
 def _run_daemon(config: dict) -> None:
-    """Daemon mode — keep Dulus alive in the background for Telegram bridges.
+    """Daemon mode — keep NEMESIS alive in the background for Telegram bridges.
 
     No REPL, no GUI. Just a persistent state + callback loop so external
     triggers (Telegram) can wake the agent at any time.
@@ -7092,7 +7092,7 @@ def _run_daemon(config: dict) -> None:
     config["_handle_slash_callback"] = _daemon_handle_slash
 
     # Auto-start the webchat server alongside the daemon — always, by default.
-    # The whole point of daemon mode is "headless Dulus serving every entry
+    # The whole point of daemon mode is "headless NEMESIS serving every entry
     # point at once" (CLI via IPC, browser via WebChat, Telegram via bridge).
     # Skip only if config["webchat_disabled"] is true OR env var
     # DULUS_DAEMON_NO_WEB=1 is set (escape hatch for users who explicitly
@@ -7547,7 +7547,7 @@ def cmd_tts(args: str, state, config) -> bool:
     /tts lang                 — show current language
     /tts provider             — show current TTS provider
     /tts provider <name>      — set provider (auto, azure, riva, openai, gtts, pyttsx3)
-    /tts auto                 — toggle auto-listen: after Dulus speaks, mic opens for
+    /tts auto                 — toggle auto-listen: after NEMESIS speaks, mic opens for
                                 your next reply (continuous voice conversation)
     /tts auto on|off          — explicit auto-listen toggle
     """
@@ -7606,7 +7606,7 @@ def cmd_tts(args: str, state, config) -> bool:
         state_str = "ON" if config["tts_auto_listen"] else "OFF"
         ok(f"TTS auto-listen: {state_str}  (mic opens automatically after each spoken reply)")
         if config["tts_auto_listen"] and not config.get("tts_enabled", False):
-            warn("Tip: also enable /tts so Dulus actually speaks.")
+            warn("Tip: also enable /tts so NEMESIS actually speaks.")
         save_config(config)
         return True
 
@@ -7812,7 +7812,7 @@ _wake_listener: Any = None
 def cmd_wake(args: str, state, config) -> bool:
     """Wake-word (hotword) detection — hands-free voice activation.
 
-    /wake on       — start listening for "Hey Dulus" in background
+    /wake on       — start listening for "Hey NEMESIS" in background
     /wake off      — stop the background listener
     /wake status   — show whether listener is active
     /wake phrases  — list recognised wake phrases
@@ -7946,7 +7946,7 @@ def cmd_wake(args: str, state, config) -> bool:
             err(f"Voice input not available:\n{reason}")
             return True
         print(clr("  🎙  Wake-word TEST mode — debug output ON for 10 seconds", "cyan", "bold"))
-        print(clr("  Say 'Hey Dulus' now. Press Ctrl+C to stop early.\n", "dim"))
+        print(clr("  Say 'Hey NEMESIS' now. Press Ctrl+C to stop early.\n", "dim"))
         _test_listener = WakeWordListener(
             rms_threshold=config.get("wake_threshold", 0.020),
             device_index=config.get("voice_device_index", config.get("_voice_device_index")),
@@ -7990,7 +7990,7 @@ def cmd_wake(args: str, state, config) -> bool:
         info(f"Wake-word listener: {state_str}")
         info(f"Threshold: {config.get('wake_threshold', 0.020)}")
         if active:
-            info("Say 'Hey Dulus' followed by your command.")
+            info("Say 'Hey NEMESIS' followed by your command.")
         else:
             info("Use '/wake on' to start listening.")
         return True
@@ -8046,7 +8046,7 @@ def cmd_wake(args: str, state, config) -> bool:
             save_config(config)
         except Exception:
             pass
-        ok("Wake-word listener starting… Say 'Hey Dulus' to activate.")
+        ok("Wake-word listener starting… Say 'Hey NEMESIS' to activate.")
         return True
 
     # ── Toggle ──
@@ -8243,7 +8243,7 @@ def cmd_budget(args: str, state, config) -> bool:
 
     When a limit is reached mid-run the agent stops gracefully instead of
     burning more tokens. Great for capping cost on long autonomous tasks and
-    (in Dulus Business) enforcing per-tenant plan limits.
+    (in NEMESIS Business) enforcing per-tenant plan limits.
     """
     from config import save_config
     parts = (args or "").strip().split()
@@ -8627,7 +8627,7 @@ def cmd_plan(args: str, state, config) -> bool:
         info(f"Exited plan mode. Permission mode restored to: {prev}")
         if plan_file:
             info(f"Plan saved at: {plan_file}")
-            info("You can now ask Dulus to implement the plan.")
+            info("You can now ask NEMESIS to implement the plan.")
         return True
 
     # /plan status
@@ -8781,7 +8781,7 @@ def cmd_login(args: str, _state, config) -> bool:
 
     1. Install the official Grok CLI if you don't have it.
     2. Run `grok login` (or launch it from here if the binary is in PATH).
-    3. Dulus will automatically detect ~/.grok/auth.json and use the real session.
+    3. NEMESIS will automatically detect ~/.grok/auth.json and use the real session.
 
     /login grok will try to launch the official `grok login` if the binary is available
     in your PATH. Otherwise it will guide you to run it manually.
@@ -8790,7 +8790,7 @@ def cmd_login(args: str, _state, config) -> bool:
 
     # ── Claude / Anthropic subscription OAuth (no API key, no cookie webbridge) ──
     # Mirrors the Grok flow: opens claude.ai in the browser, you approve and paste
-    # back the code, Dulus exchanges it for an OAuth token. claude-* models then run
+    # back the code, NEMESIS exchanges it for an OAuth token. claude-* models then run
     # on your Claude subscription automatically.
     if sub.split(" ")[0] in ("claude", "anthropic", "cc", "claude-code"):
         from providers import (
@@ -8834,10 +8834,10 @@ def cmd_login(args: str, _state, config) -> bool:
             except Exception:
                 pass
 
-            # 2. Already have a valid Dulus-native OAuth token.
+            # 2. Already have a valid NEMESIS-native OAuth token.
             store = _xai_oauth_load_store()
             if store.get("access_token") and not _is_token_expired(store):
-                print(clr("✅ Grok OAuth session already active (Dulus-native login).", "green"))
+                print(clr("✅ Grok OAuth session already active (NEMESIS-native login).", "green"))
                 print(clr("grok-* models are ready. Use `/login x` to force a fresh login.", "green"))
                 return True
 
@@ -8893,7 +8893,7 @@ def cmd_profile(args: str, state, config) -> bool:
     /profile list                 — same
     /profile show [name]          — details: skills, plugins, persona, config
     /profile create <name> [desc] — scaffold a new profile
-    /profile switch <name>        — make it active (default = Dulus core)
+    /profile switch <name>        — make it active (default = NEMESIS core)
     /profile delete <name>        — remove a profile
     /profile inherit <name> on|off — toggle full-core power vs lean
     """
@@ -8905,7 +8905,7 @@ def cmd_profile(args: str, state, config) -> bool:
     # ── list ────────────────────────────────────────────────────────────────
     if sub in ("", "list"):
         profs = P.list_profiles()
-        print(clr("\n  Dulus Profiles (agents)", "cyan", "bold"))
+        print(clr("\n  NEMESIS Profiles (agents)", "cyan", "bold"))
         for pr in profs:
             mark = clr(" ● active", "green") if pr["active"] else ""
             name = clr(pr["name"], "cyan", "bold") if pr["active"] else clr(pr["name"], "white")
@@ -8955,7 +8955,7 @@ def cmd_profile(args: str, state, config) -> bool:
         pname = cparts[0]
         desc = cparts[1].strip() if len(cparts) > 1 else ""
         cur = P.active_profile()
-        cur_label = "the Dulus core" if cur == "default" else f"'{cur}'"
+        cur_label = "the NEMESIS core" if cur == "default" else f"'{cur}'"
 
         # Ask how to seed the new profile, unless a flag already decided.
         if inherit_choice is None:
@@ -8983,7 +8983,7 @@ def cmd_profile(args: str, state, config) -> bool:
     # ── switch ──────────────────────────────────────────────────────────────
     if sub == "switch":
         if not rest:
-            err("Usage: /profile switch <name>  (use 'default' for the Dulus core)")
+            err("Usage: /profile switch <name>  (use 'default' for the NEMESIS core)")
             return True
         success, msg = P.switch_profile(rest)
         if not success:
@@ -9030,7 +9030,7 @@ def cmd_profile(args: str, state, config) -> bool:
 
 
 def cmd_update(args: str, state, config) -> bool:
-    """Self-update Dulus from PyPI — keep every node on the latest release.
+    """Self-update NEMESIS from PyPI — keep every node on the latest release.
 
     /update            — check PyPI and update now if a newer version exists
     /update now        — force an update to the latest release
@@ -9055,7 +9055,7 @@ def cmd_update(args: str, state, config) -> bool:
             save_config(config)
         except Exception:
             pass
-        ok("Automatic update check enabled — Dulus will check PyPI at startup.")
+        ok("Automatic update check enabled — NEMESIS will check PyPI at startup.")
         return True
     if sub in ("off", "disable"):
         config["auto_update"] = False
@@ -9083,7 +9083,7 @@ def cmd_update(args: str, state, config) -> bool:
         elif available:
             ok(f"Update available: {current} -> {latest}.  Run /update now")
         else:
-            ok(f"You're on the latest Dulus ({current}). 🦅")
+            ok(f"You're on the latest NEMESIS ({current}). 🦅")
         return True
 
     # Default (no arg) and "now" → check + install if newer
@@ -9093,7 +9093,7 @@ def cmd_update(args: str, state, config) -> bool:
             info(f"Couldn't reach PyPI. Installed: {current}")
             return True
         if not available:
-            ok(f"You're already on the latest Dulus ({current}). 🦅")
+            ok(f"You're already on the latest NEMESIS ({current}). 🦅")
             return True
         info(f"Updating {current} -> {latest} ...")
 
@@ -9106,7 +9106,7 @@ def cmd_update(args: str, state, config) -> bool:
     success, message = updater.perform_update(target if available else None)
     if success:
         ok(message)
-        info("Restart Dulus to run the new version.")
+        info("Restart NEMESIS to run the new version.")
     else:
         err(message)
     return True
@@ -9160,7 +9160,7 @@ def cmd_init(args: str, state, config) -> bool:
     )
     target.write_text(template, encoding="utf-8")
     info(f"Created {target}")
-    info("Edit it to give Dulus context about your project.")
+    info("Edit it to give NEMESIS context about your project.")
     return True
 
 
@@ -9364,7 +9364,7 @@ def cmd_import(args: str, state, config) -> bool:
     """Import conversation data from a file or another session.
 
     /import <file_path>  - import from .json, .md, or .txt
-    /import <session_id> - import from another Dulus session
+    /import <session_id> - import from another NEMESIS session
     """
     from pathlib import Path
     _ei_path = Path(__file__).resolve().parent / "dulus" / "export_import.py"
@@ -9696,7 +9696,7 @@ def cmd_doctor(args: str, state, config) -> bool:
             else:
                 warn(f"{desc}: {e}")
 
-    # Audio playback binaries (ffmpeg/mpv) — Dulus shells out to one of these
+    # Audio playback binaries (ffmpeg/mpv) — NEMESIS shells out to one of these
     # to play TTS mp3s. Without one you get "[TTS] Cannot play audio: no
     # player found" and the agent is mute. Surface this explicitly so users
     # know which apt/brew package to install.
@@ -10108,16 +10108,16 @@ def cmd_claude_batch(args: str, _state, config) -> bool:
 
 
 def cmd_webbridge(args: str, state, config) -> bool:
-    """Control the Dulus WebBridge browser automation."""
+    """Control the NEMESIS WebBridge browser automation."""
     from os import makedirs, path, getenv
     from datetime import datetime
     try:
-        from webbridge.core import DulusWebBridge
+        from webbridge.core import NEMESISWebBridge
     except ImportError:
         err("WebBridge not available. Install dependencies: pip install playwright")
         return True
 
-    bridge = DulusWebBridge()
+    bridge = NEMESISWebBridge()
     parts = (args or "").strip().split()
     sub = parts[0].lower() if parts else "status"
 
@@ -10505,8 +10505,8 @@ _CMD_META: dict[str, tuple[str, list[str]]] = {
     "task":        ("Manage tasks (alias)",               ["create", "delete", "get", "clear",
                                                            "todo", "in-progress", "done", "blocked"]),
     "proactive":   ("Manage proactive background watcher", ["off"]),
-    "daemon":      ("Toggle daemon — allow external triggers (Telegram) to spawn Dulus", ["on", "off"]),
-    "bg":          ("Background Dulus — one detached daemon for CLI + Web + Telegram", ["start", "stop", "kill", "status", "attach"]),
+    "daemon":      ("Toggle daemon — allow external triggers (Telegram) to spawn NEMESIS", ["on", "off"]),
+    "bg":          ("Background NEMESIS — one detached daemon for CLI + Web + Telegram", ["start", "stop", "kill", "status", "attach"]),
     "lite":        ("Toggle lite mode (reduce system prompt)", ["on", "off"]),
     "rtk":         ("Toggle RTK token-optimized shell rewriting", ["on", "off"]),
     "cloudsave":   ("Cloud-sync sessions to GitHub Gist", ["setup", "auto", "list", "load", "push"]),
@@ -10537,7 +10537,7 @@ _CMD_META: dict[str, tuple[str, list[str]]] = {
     "export":      ("Export conversation to file",          []),
     "fork":        ("Fork session at a turn",               []),
     "undo":        ("Undo last turn",                       []),
-    "workspace":   ("Manage Dulus workspaces",              ["current", "list", "switch", "default", "create", "delete"]),
+    "workspace":   ("Manage NEMESIS workspaces",              ["current", "list", "switch", "default", "create", "delete"]),
     "add-dir":     ("Manage additional workspace dirs",     ["list", "remove"]),
     "import":      ("Import from file or session",          []),
     "copy":        ("Copy last response or file to clipboard", ["file"]),
@@ -10547,7 +10547,7 @@ _CMD_META: dict[str, tuple[str, list[str]]] = {
     "exit":        ("Exit dulus",              []),
     "quit":        ("Exit (alias for /exit)",             []),
     "resume":      ("Resume last session",                []),
-    "update":      ("Self-update Dulus from PyPI",        ["now", "check", "status", "on", "off"]),
+    "update":      ("Self-update NEMESIS from PyPI",        ["now", "check", "status", "on", "off"]),
     "news":        ("Show latest project news",           []),
     "claude_chats": ("List Claude.ai conversations",       ["all"]),
     "gemini_chats": ("Manage Gemini Web conversations",    ["new"]),
@@ -10555,7 +10555,7 @@ _CMD_META: dict[str, tuple[str, list[str]]] = {
     "harvest-claude": ("Harvest Claude.ai cookies (alias)", []),
     "webchat":       ("Spawn web chat UI",                 ["stop", "lan"]),
     "webbridge":     ("Control WebBridge browser",          ["status", "open", "click", "type", "screenshot", "extract", "scroll", "newtab", "switchtab", "closetab", "listtabs", "close", "help"]),
-    "sandbox":       ("Open Dulus Sandbox OS in browser",  ["stop"]),
+    "sandbox":       ("Open NEMESIS Sandbox OS in browser",  ["stop"]),
     "gui":           ("Launch desktop GUI",                 []),
 }
 
@@ -10883,7 +10883,7 @@ def repl(config: dict, initial_prompt: str = None):
     if not initial_prompt:
         from providers import detect_provider
         
-        # ── Dulus startup animation ──
+        # ── NEMESIS startup animation ──
         _DULUS_FRAMES = [
             "     ✦",
             "    ✦ ·",
@@ -10936,7 +10936,7 @@ def repl(config: dict, initial_prompt: str = None):
         try:
             for i in range(3):
                 frame = _GALAXY_FRAMES[i % 4]
-                sys.stdout.write(f"\r  {clr(frame, 'cyan', 'bold')} Initializing Dulus...")
+                sys.stdout.write(f"\r  {clr(frame, 'cyan', 'bold')} Initializing NEMESIS...")
                 sys.stdout.flush()
                 time.sleep(0.08)
             sys.stdout.write(f"\r{' ' * 40}\r")
@@ -11005,7 +11005,7 @@ def repl(config: dict, initial_prompt: str = None):
                 warn(f"Workspace init skipped: {_e}")
 
         # ── Auto-update check (on by default; /update off to disable) ─────────
-        # Keep every Dulus in the world on the latest release: the organism
+        # Keep every NEMESIS in the world on the latest release: the organism
         # heals fastest when fixes propagate instantly. This is intentionally
         # quiet & fast — cached PyPI check (6h TTL), short timeout, never blocks
         # or crashes the boot. Set auto_update=False (or /update off) to skip.
@@ -11015,7 +11015,7 @@ def repl(config: dict, initial_prompt: str = None):
                 _avail, _cur, _latest = _updater.is_update_available()
                 if _avail:
                     print()
-                    info(f"  🆕 A new Dulus is available: {_cur} → {_latest}")
+                    info(f"  🆕 A new NEMESIS is available: {_cur} → {_latest}")
                     if config.get("auto_update_install", True):
                         # Kevin's call: force the update at startup so we keep
                         # the whole fleet in sync. Set auto_update_install=False
@@ -11260,7 +11260,7 @@ def repl(config: dict, initial_prompt: str = None):
                             _raw_hits = []
                             # Primary: query the real MemPalace (~/.mempalace/palace) which holds
                             # the rich corpus (hija_palace, soul, bond, sessions, knowledge, etc.).
-                            # Dulus's local find_relevant_memories only sees ~/.dulus/memory/*.md,
+                            # NEMESIS's local find_relevant_memories only sees ~/.dulus/memory/*.md,
                             # which is a tiny slice and was the reason the same 3 generic files
                             # kept getting injected on every turn.
                             try:
@@ -11283,7 +11283,7 @@ def repl(config: dict, initial_prompt: str = None):
                                 _mp_log(f"mempalace hits: {len(_raw_hits)}")
                             except Exception as _mpe:
                                 _mp_log(f"mempalace unavailable, falling back to local: {type(_mpe).__name__}: {_mpe}", "dim")
-                            # Fallback: Dulus's local memory dir (the old path)
+                            # Fallback: NEMESIS's local memory dir (the old path)
                             if not _raw_hits:
                                 from memory import find_relevant_memories
                                 _raw_hits = find_relevant_memories(_q, max_results=3)
@@ -11370,11 +11370,11 @@ def repl(config: dict, initial_prompt: str = None):
                 if _use_bubbles():
                     print()
                     _hdr = _bubbles.get_rich_chain(
-                        " 🦅 Dulus ", "dark_orange", "black"
+                        " 🦅 NEMESIS ", "dark_orange", "black"
                     ).link(" ● ", "green", "black").end()
                     Console(file=sys.stdout, width=console.width, force_terminal=console.is_terminal, legacy_windows=console.legacy_windows, color_system=console.color_system).print(_hdr)
                 else:
-                    print(clr("\n╭─ Dulus ", "dim") + clr("●", "green") + clr(" ─────────────────────────", "dim"))
+                    print(clr("\n╭─ NEMESIS ", "dim") + clr("●", "green") + clr(" ─────────────────────────", "dim"))
                 _accumulated_text.clear()   # reset per-turn buffer — prevents background events from re-printing previous turn
                 thinking_started = False
                 spinner_shown = not is_background
@@ -11583,7 +11583,7 @@ def repl(config: dict, initial_prompt: str = None):
                             try:
                                 from voice import say
                                 say(ans_content, lang=config.get("tts_lang", "es"), provider=config.get("tts_provider", "auto"))
-                                # auto-listen: after Dulus spoke, signal the input
+                                # auto-listen: after NEMESIS spoke, signal the input
                                 # loop to open the mic instead of the keyboard prompt
                                 if config.get("tts_auto_listen", False):
                                     config["_auto_voice_next"] = True
@@ -12162,7 +12162,7 @@ def repl(config: dict, initial_prompt: str = None):
             try:
                 # Only ask if there's actually a session worth saving
                 if state.messages and state.turn_count > 1:
-                    print(clr("\n  [Dulus is still awake] ", "cyan") + clr("Consolidate memories before sleeping? [y/N] ", "white", "bold"), end="", flush=True)
+                    print(clr("\n  [NEMESIS is still awake] ", "cyan") + clr("Consolidate memories before sleeping? [y/N] ", "white", "bold"), end="", flush=True)
                     choice = _read_input("").strip().lower()
                     if choice == "y":
                         prompt = (
@@ -12801,7 +12801,7 @@ def repl(config: dict, initial_prompt: str = None):
 def main():
     parser = argparse.ArgumentParser(
         prog="dulus",
-        description="Dulus - Next-gen Python Autonomous Agent",
+        description="NEMESIS - Next-gen Python Autonomous Agent",
         add_help=False,
     )
     parser.add_argument("prompt", nargs="*", help="Initial prompt (non-interactive)")
@@ -12827,18 +12827,18 @@ def main():
     
     # Direct command execution mode (e.g., --cmd "plugin reload", --cmd "checkpoint clear")
     parser.add_argument("-c", "--cmd", dest="exec_cmd", nargs='+',
-                        help="Execute a Dulus command and exit (e.g., --cmd \"plugin reload\")")
+                        help="Execute a NEMESIS command and exit (e.g., --cmd \"plugin reload\")")
     parser.add_argument("--gui", action="store_true",
                         help="Launch the desktop GUI instead of the terminal REPL")
     parser.add_argument("--gui-classic", action="store_true",
                         help="Alias for --gui (kept for backward compatibility)")
     parser.add_argument("--daemon", action="store_true",
-                        help="Daemon mode — keep Dulus alive in the background for Telegram/webhook bridges")
+                        help="Daemon mode — keep NEMESIS alive in the background for Telegram/webhook bridges")
 
     args = parser.parse_args()
 
     if args.version:
-        print(f"dulus v{VERSION}")
+        print(f"NEMESIS v{VERSION}")
         sys.exit(0)
 
     if args.help:
@@ -12891,7 +12891,7 @@ def main():
     # the heavy lifting happens off the main thread.
     # Background prewarm — eager imports for slow modules so the first user
     # interaction doesn't eat the cost. Confirmed culprit (2026-05-13):
-    # `from elevenlabs.client import ElevenLabs` takes ~39s inside Dulus
+    # `from elevenlabs.client import ElevenLabs` takes ~39s inside NEMESIS
     # because pydantic v2's model_rebuild() scans the already-loaded sys.modules
     # (anthropic, openai, mempalace, sounddevice, ...). Same import standalone
     # is ~0.3s. Loading it in a daemon thread at boot caches it in sys.modules
@@ -12925,7 +12925,7 @@ def main():
     elif _lic.tier != LicenseTier.FREE:
         print(f"\n✅ {_lic.status_banner()}")
     else:
-        print(f"\n🦅 Dulus — {_lic.status_banner()}")
+        print(f"\n🦅 NEMESIS — L’aigle de la justice — {_lic.status_banner()}")
     # Inject license limits into config for downstream modules
     config["_license_tier"] = _lic.tier
     config["_license_valid"] = _lic.valid
@@ -12970,7 +12970,7 @@ def main():
         session_id = uuid.uuid4().hex[:8]
         set_session(session_id)
         
-        print(clr(f"\n  [Dulus Command] Executing: {cmd_str}", "cyan", "bold"))
+        print(clr(f"\n  [NEMESIS Command] Executing: {cmd_str}", "cyan", "bold"))
         
         # Execute the command
         result = handle_slash(cmd_str, state, config)
@@ -13005,7 +13005,7 @@ def main():
             except Exception:
                 pass
 
-        print(clr(f"\n  🚀 [Dulus Tool Runner] Executing: {args.run_tool} (Job: {job_id})", "cyan", "bold"))
+        print(clr(f"\n  🚀 [NEMESIS Tool Runner] Executing: {args.run_tool} (Job: {job_id})", "cyan", "bold"))
         print(clr("  " + "─" * 60, "dim"))
         
         try:
@@ -13066,7 +13066,7 @@ def main():
 
     initial = " ".join(args.prompt) if args.prompt else None
 
-    # ── IPC dispatch: if a Dulus REPL/daemon is already running on
+    # ── IPC dispatch: if a NEMESIS REPL/daemon is already running on
     # 127.0.0.1:5151, forward this prompt to it (shared session) and exit.
     # Falls through silently when no listener is up.
     # Only kicks in for plain `dulus "..."` and `dulus -p "..."` — not for

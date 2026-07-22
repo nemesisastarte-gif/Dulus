@@ -243,7 +243,11 @@ TOOL_SCHEMAS = [
             "properties": {
                 "image_path": {
                     "type": "string",
-                    "description": "Absolute path to the image file on disk.",
+                    "description": "Absolute path to the image file on disk (preferred key).",
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Alias accepted for image_path.",
                 },
                 "languages": {
                     "type": "string",
@@ -634,9 +638,11 @@ def _ocr_extract(image_path: str, languages: str = "en,es") -> str:
         return f"Error: not a file: {image_path}"
 
     # ── Engine 1: pytesseract ────────────────────────────────────────
+    ocr_engine_available = False
     try:
         import pytesseract  # type: ignore
         from PIL import Image
+        ocr_engine_available = bool(pytesseract.get_tesseract_version())
         if _sys.platform == "win32":
             for tp in (
                 r"C:\Program Files\Tesseract-OCR\tesseract.exe",
@@ -686,7 +692,9 @@ def _ocr_extract(image_path: str, languages: str = "en,es") -> str:
     except ImportError:
         pass
 
-    # ── No engine available ──────────────────────────────────────────
+    # ── No engine available / no text ────────────────────────────────
+    if ocr_engine_available:
+        return "[engine: tesseract] OCR completed but no readable text was found in the image."
     return (
         "Error: no OCR engine available. Install one:\n"
         "  pip install dulus[ocr]            (uses pytesseract — needs Tesseract binary)\n"
@@ -1276,6 +1284,12 @@ def _glob(pattern: str, path: str = None) -> str:
     # are unsupported"). If the model passes an absolute pattern, split it
     # into the longest non-glob prefix (base) + the rest (relative pattern).
     p = Path(pattern)
+    if p.is_absolute() and not any(c in pattern for c in ("*", "?", "[")):
+        if p.is_file():
+            return str(p)
+        if p.is_dir():
+            return "\n".join(str(x) for x in sorted(p.iterdir()))
+        return f"Error: path not found: {p}"
     if p.is_absolute() or any(c in pattern for c in (":\\", ":/")):
         parts = p.parts
         split_idx = len(parts)
@@ -1494,9 +1508,23 @@ def _libretranslate_available() -> bool:
 
 def _webfetch(url: str) -> str:
     """Fetch URL → plain text.
+
+    Models often copy Markdown links from WebSearch (``[title](https://…)``)
+    instead of passing the bare URL. Normalize that harmless presentation
+    format here so WebFetch receives a real URL.
     """
     try:
         from pathlib import Path
+        import re
+
+        url = (url or "").strip()
+        markdown = re.fullmatch(r"\[[^\]]*\]\((https?://[^)]+)\)", url)
+        if markdown:
+            url = markdown.group(1)
+        else:
+            found = re.search(r"https?://[^\s)]+", url)
+            if found and not url.startswith(("http://", "https://", "file://")):
+                url = found.group(0)
 
         # ── Fetch ──────────────────────────────────────────────────────────
         if url.startswith("file://"):
@@ -2341,7 +2369,7 @@ def _register_builtins() -> None:
         ToolDef(
             name="ExtractTextFromImage",
             schema=_schemas["ExtractTextFromImage"],
-            func=lambda p, c: _ocr_extract(p["image_path"], p.get("languages", "en,es")),
+            func=lambda p, c: _ocr_extract(p.get("image_path") or p.get("file_path", ""), p.get("languages", "en,es")),
             read_only=True,
             concurrent_safe=True,
         ),

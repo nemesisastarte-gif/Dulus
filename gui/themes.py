@@ -23,19 +23,19 @@ THEMES: dict[str, dict[str, str]] = {
         "warning": "#f1fa8c",
     },
     "midnight": {
-        "bg": "#1a1a2e",
-        "card": "#16213e",
-        "accent": "#00BCD4",
-        "accent_hover": "#00acc1",
-        "text": "#eaeaea",
-        "dim": "#a0a0a0",
-        "border": "#2a2a4a",
-        "user_bubble": "#0d3b4c",
-        "assistant_bubble": "#1e293b",
-        "code_bg": "#0d1117",
-        "error": "#ff6b6b",
-        "success": "#4caf50",
-        "warning": "#FFC107",
+        "bg": "#0b0d12",
+        "card": "#11151c",
+        "accent": "#22d3ee",
+        "accent_hover": "#67e8f9",
+        "text": "#f4f7fb",
+        "dim": "#8b95a7",
+        "border": "#252d3b",
+        "user_bubble": "#123247",
+        "assistant_bubble": "#151b25",
+        "code_bg": "#080b10",
+        "error": "#fb7185",
+        "success": "#4ade80",
+        "warning": "#facc15",
     },
     "ocean": {
         "bg": "#0f172a",
@@ -276,7 +276,7 @@ def get_quality_color(score: int) -> str:
 def get_quality_label(score: int) -> str:
     """Return a human-readable label for the quality score."""
     if score >= 90:
-        return "Excelente"
+        return "Excellent"
     elif score >= 71:
         return "Bueno"
     elif score >= 41:

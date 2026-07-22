@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import json
 import os
+import tkinter as tk
 from pathlib import Path
 from typing import Callable
 
 try:
     import customtkinter as ctk
+    from PIL import Image
     HAS_CTK = True
 except ImportError:
     import tkinter as ctk
@@ -22,7 +24,7 @@ from config import CONFIG_DIR, SESSIONS_DIR, DAILY_DIR, load_config
 from tool_registry import get_all_tools
 from providers import PROVIDERS, list_ollama_models
 from gui.themes import get_theme, CURATED_MODELS
-from gui.session_utils import build_title, scan_sessions, delete_session
+from gui.session_utils import build_title, scan_sessions, delete_session, rename_session, duplicate_session, export_session
 
 # ── Theme constants (mirror main_window.py when available) ──────────────────
 BG_COLOR = "#1a1a2e"
@@ -33,7 +35,7 @@ MAGENTA_ACCENT = "#e91e63"
 TEXT_COLOR = "#eaeaea"
 TEXT_DIM = "#a0a0a0"
 BORDER_COLOR = "#2a2a4a"
-SIDEBAR_WIDTH = 260
+SIDEBAR_WIDTH = 300
 
 FONT_FAMILY = "Segoe UI"
 FONT_NORMAL = (FONT_FAMILY, 12)
@@ -86,6 +88,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
 
         self._active_session_id: str | None = None
         self._session_cache: dict[str, dict] = {}
+        self._all_session_data: list[dict] = []
 
         self._build_ui()
         self._refresh_model_list()
@@ -120,10 +123,26 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
 
         # ── Header / Logo ────────────────────────────────────────────────────
         lbl_cls = ctk.CTkLabel if HAS_CTK else ctk.Label
-        self._logo_label = lbl_cls(container, text="🦅  Dulus", font=(FONT_FAMILY, 18, "bold"),
+        # Use the real eagle asset instead of an emoji glyph (which renders
+        # as an empty square on many Linux fonts).
+        logo_image = None
+        if HAS_CTK:
+            for candidate in (
+                Path(__file__).parent.parent / "brand-assets" / "cigua-icon-64.png",
+                Path(__file__).parent.parent / "brand-assets" / "cigua-icon-128.png",
+            ):
+                if candidate.exists():
+                    try:
+                        logo_image = ctk.CTkImage(Image.open(candidate).convert("RGBA"), size=(30, 30))
+                        break
+                    except Exception:
+                        pass
+        self._logo_image = logo_image
+        self._logo_label = lbl_cls(container, text="  NEMESIS", image=logo_image,
+             compound="left", font=(FONT_FAMILY, 18, "bold"),
              text_color=ACCENT_COLOR if HAS_CTK else ACCENT_COLOR)
         self._logo_label.pack(anchor="w", pady=(0, 2))
-        self._subtitle_label = lbl_cls(container, text="AI Coding Assistant", font=FONT_SMALL,
+        self._subtitle_label = lbl_cls(container, text="Assistant dev · Aigle de la justice", font=FONT_SMALL,
              text_color=TEXT_DIM if HAS_CTK else TEXT_DIM)
         self._subtitle_label.pack(anchor="w", pady=(0, 10))
 
@@ -137,7 +156,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         btn_cls = ctk.CTkButton if HAS_CTK else ctk.Button
         self._new_chat_btn = btn_cls(
             container,
-            text="+  Nueva conversación",
+            text="+  Nouvelle conversation",
             font=FONT_BOLD,
             fg_color=ACCENT_COLOR if HAS_CTK else ACCENT_COLOR,
             hover_color=ACCENT_HOVER if HAS_CTK else ACCENT_HOVER,
@@ -148,7 +167,14 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         self._new_chat_btn.pack(fill="x", pady=(0, 12))
 
         # ── Session list ─────────────────────────────────────────────────────
-        self._sess_label = lbl_cls(container, text="Historial", font=FONT_BOLD,
+        self.session_search = ctk.CTkEntry(
+            container, placeholder_text="Rechercher une session…", height=30,
+            fg_color=BG_COLOR, border_color=BORDER_COLOR, text_color=TEXT_COLOR,
+        ) if HAS_CTK else None
+        if self.session_search:
+            self.session_search.pack(fill="x", pady=(0, 8))
+            self.session_search.bind("<KeyRelease>", lambda _e: self._apply_session_filter())
+        self._sess_label = lbl_cls(container, text="Historique", font=FONT_BOLD,
                  text_color=TEXT_COLOR if HAS_CTK else TEXT_COLOR)
         self._sess_label.pack(anchor="w", pady=(0, 6))
 
@@ -158,7 +184,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         self.session_frame.pack(fill="x", pady=(0, 12))
 
         # ── Model selector ───────────────────────────────────────────────────
-        self._model_label = lbl_cls(container, text="Modelo activo", font=FONT_BOLD,
+        self._model_label = lbl_cls(container, text="Modèle actif", font=FONT_BOLD,
                   text_color=TEXT_COLOR if HAS_CTK else TEXT_COLOR)
         self._model_label.pack(anchor="w", pady=(0, 6))
 
@@ -175,10 +201,20 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             self.model_combo = ttk.Combobox(container, textvariable=self._model_var, state="readonly")
             self.model_combo.bind("<<ComboboxSelected>>", lambda e: self._on_model_change(self._model_var.get()))
 
-        self.model_combo.pack(fill="x", pady=(0, 12))
+        self.model_combo.pack(fill="x", pady=(0, 6))
+        self.provider_status = lbl_cls(container, text="Provider : vérification…", font=FONT_SMALL,
+                                       text_color=TEXT_DIM if HAS_CTK else TEXT_DIM)
+        self.provider_status.pack(anchor="w", pady=(0, 4))
+        self.provider_test_btn = btn_cls(container, text="◉ Tester le provider", font=FONT_SMALL,
+            height=26, fg_color=BORDER_COLOR if HAS_CTK else BORDER_COLOR,
+            hover_color=ACCENT_HOVER if HAS_CTK else ACCENT_HOVER,
+            text_color=TEXT_COLOR if HAS_CTK else TEXT_COLOR,
+            **({"bg": BORDER_COLOR} if not HAS_CTK else {}),
+            command=lambda: self.on_provider_test() if self.on_provider_test else None)
+        self.provider_test_btn.pack(fill="x", pady=(0, 12))
 
         # ── Context usage bar ────────────────────────────────────────────────
-        self._ctx_label = lbl_cls(container, text="Uso de contexto", font=FONT_BOLD,
+        self._ctx_label = lbl_cls(container, text="Utilisation du contexte", font=FONT_BOLD,
                 text_color=TEXT_COLOR if HAS_CTK else TEXT_COLOR)
         self._ctx_label.pack(anchor="w", pady=(0, 6))
 
@@ -202,7 +238,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         self.context_bar.pack(fill="x", pady=(4, 12))
 
         # ── Quick commands ───────────────────────────────────────────────────
-        self._cmd_label = lbl_cls(container, text="Comandos rápidos", font=FONT_BOLD,
+        self._cmd_label = lbl_cls(container, text="Raccourcis", font=FONT_BOLD,
                 text_color=TEXT_COLOR if HAS_CTK else TEXT_COLOR)
         self._cmd_label.pack(anchor="w", pady=(0, 6))
 
@@ -239,7 +275,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
 
         self._settings_btn = btn_cls(
             self._bottom_frame,
-            text="⚙  Ajustes",
+            text="⚙  Paramètres",
             font=FONT_NORMAL,
             fg_color="transparent" if HAS_CTK else CARD_COLOR,
             hover_color=BORDER_COLOR if HAS_CTK else BORDER_COLOR,
@@ -292,8 +328,53 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         )
         del_btn.grid(row=0, column=1, padx=(0, 2))
 
+        menu_btn = btn_cls(row, text="⋯", width=24, height=24, font=(FONT_FAMILY, 12),
+                           fg_color="transparent" if HAS_CTK else CARD_COLOR,
+                           hover_color=BORDER_COLOR if HAS_CTK else BORDER_COLOR,
+                           text_color=TEXT_DIM if HAS_CTK else TEXT_DIM,
+                           command=lambda s=sid, b=row: self._session_menu(s, b))
+        menu_btn.grid(row=0, column=2, padx=(0, 2))
+
+    def _session_menu(self, session_id: str, anchor) -> None:
+        from tkinter import filedialog, simpledialog
+        menu = tk.Menu(anchor, tearoff=0) if not HAS_CTK else None
+        if menu is None:
+            # CustomTkinter has no native menu styling; use a small popup.
+            popup = ctk.CTkToplevel(self)
+            popup.title("Session")
+            popup.geometry("240x190")
+            ctk.CTkButton(popup, text="Renommer", command=lambda: (self._rename_session(session_id, popup))).pack(fill="x", padx=12, pady=6)
+            ctk.CTkButton(popup, text="Dupliquer", command=lambda: (duplicate_session(session_id), popup.destroy(), self.refresh_sessions())).pack(fill="x", padx=12, pady=6)
+            ctk.CTkButton(popup, text="Exporter Markdown", command=lambda: (self._export_session(session_id, "md", popup))).pack(fill="x", padx=12, pady=6)
+            ctk.CTkButton(popup, text="Exporter JSON", command=lambda: (self._export_session(session_id, "json", popup))).pack(fill="x", padx=12, pady=6)
+            return
+        menu.add_command(label="Renommer", command=lambda: self._rename_session(session_id, None))
+        menu.add_command(label="Dupliquer", command=lambda: (duplicate_session(session_id), self.refresh_sessions()))
+        menu.add_command(label="Exporter Markdown", command=lambda: self._export_session(session_id, "md", None))
+        menu.add_command(label="Exporter JSON", command=lambda: self._export_session(session_id, "json", None))
+        menu.tk_popup(anchor.winfo_rootx(), anchor.winfo_rooty())
+
+    def _rename_session(self, session_id: str, popup=None) -> None:
+        from tkinter import simpledialog
+        title = simpledialog.askstring("Renommer la session", "Nouveau nom :", parent=self)
+        if title and rename_session(session_id, title):
+            if popup: popup.destroy()
+            self.refresh_sessions()
+
+    def _export_session(self, session_id: str, fmt: str, popup=None) -> None:
+        from tkinter import filedialog
+        ext = ".md" if fmt == "md" else ".json"
+        path = filedialog.asksaveasfilename(title="Exporter la session", defaultextension=ext,
+                                            filetypes=[("Markdown", "*.md"), ("JSON", "*.json")])
+        if path and export_session(session_id, path, fmt):
+            if popup: popup.destroy()
+
     def set_sessions(self, sessions: list[dict]) -> None:
         """Update the session history list in the sidebar (incremental diff)."""
+        self._all_session_data = list(sessions)
+        query = self.session_search.get().strip().lower() if self.session_search else ""
+        if query:
+            sessions = [s for s in sessions if query in (s.get("title", "") + " " + s.get("id", "")).lower()]
         new_ids = {s.get("id", "") for s in sessions}
         old_ids = set(self._sessions)
 
@@ -327,7 +408,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
 
         # Show placeholder if empty
         if not sessions and not any(
-            isinstance(w, (ctk.CTkLabel if HAS_CTK else ctk.Label)) and w.cget("text") == "(sin sesiones)"
+            isinstance(w, (ctk.CTkLabel if HAS_CTK else ctk.Label)) and w.cget("text") == "(aucune session)"
             for w in getattr(self.session_frame, "winfo_children", lambda: [])()
         ):
             for widget in getattr(self.session_frame, "winfo_children", lambda: [])():
@@ -335,7 +416,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             self._session_buttons.clear()
             self._sessions.clear()
             lbl = ctk.CTkLabel if HAS_CTK else ctk.Label
-            lbl(self.session_frame, text="(sin sesiones)", font=FONT_SMALL,
+            lbl(self.session_frame, text="(aucune session)", font=FONT_SMALL,
                 text_color=TEXT_DIM if HAS_CTK else TEXT_DIM).pack(anchor="w")
 
         self._highlight_active_session()
@@ -349,6 +430,10 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             if self._active_session_id == session_id:
                 if self.on_new_chat:
                     self.on_new_chat()
+
+    def _apply_session_filter(self) -> None:
+        if self._all_session_data:
+            self.set_sessions(self._all_session_data)
 
     def set_active_session(self, session_id: str | None) -> None:
         """Mark a session as active in the sidebar."""
@@ -391,7 +476,7 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         tools = get_all_tools()
         if not tools:
             lbl = ctk.CTkLabel if HAS_CTK else ctk.Label
-            lbl(self.tools_frame, text="(ninguna tool cargada)", font=FONT_SMALL,
+            lbl(self.tools_frame, text="(aucun outil chargé)", font=FONT_SMALL,
                 text_color=TEXT_DIM if HAS_CTK else TEXT_DIM).pack(anchor="w")
             return
 
@@ -416,6 +501,10 @@ class DulusSidebar(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             self.model_combo.configure(values=models)
         else:
             self.model_combo["values"] = models
+
+    def set_provider_status(self, text: str, color: str | None = None) -> None:
+        if getattr(self, "provider_status", None):
+            self.provider_status.configure(text=text, text_color=color or TEXT_DIM)
 
     def update_context_bar(self) -> None:
         """Refresh the context usage progress bar (call from UI thread)."""

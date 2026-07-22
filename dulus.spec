@@ -1,11 +1,17 @@
 # PyInstaller spec for the Dulus CLI binary.
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = collect_submodules("dulus_mcp") + collect_submodules("dulus_tools")
+hiddenimports = (
+    collect_submodules("dulus_mcp")
+    + collect_submodules("dulus_tools")
+    + collect_submodules("gui")
+    + ["dulus_gui", "customtkinter", "PIL", "playwright"]
+)
 datas = [
     ("sandbox/dist", "sandbox/dist"),
     ("data", "data"),
     ("skill/bundled", "skill/bundled"),
+    ("brand-assets", "brand-assets"),
     ("sha3_wasm_bg.wasm", "."),
 ]
 
@@ -28,7 +34,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="dulus",
+    name="nemesis",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

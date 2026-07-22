@@ -161,7 +161,7 @@ class TaskCard(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         # ── Expand button ────────────────────────────────────────────────────
         if len(description) > 120:
             self.expand_btn = ctk.CTkButton(
-                self, text="Ver mas", font=FONT_SMALL, fg_color="transparent",
+                self, text="Voir plus", font=FONT_SMALL, fg_color="transparent",
                 hover_color=BORDER_COLOR, text_color=ACCENT_COLOR, height=24, width=80,
                 command=self._toggle_expand,
             )
@@ -196,11 +196,11 @@ class TaskCard(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         if self._expanded:
             short = (self.full_desc[:120] + "...") if len(self.full_desc) > 120 else self.full_desc
             self.desc_lbl.configure(text=short)
-            self.expand_btn.configure(text="Ver mas")
+            self.expand_btn.configure(text="Voir plus")
             self._expanded = False
         else:
             self.desc_lbl.configure(text=self.full_desc)
-            self.expand_btn.configure(text="Ver menos")
+            self.expand_btn.configure(text="Voir moins")
             self._expanded = True
 
 
@@ -233,7 +233,7 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         toolbar.grid_propagate(False)
 
         title = ctk.CTkLabel(
-            toolbar, text="Dulus Task Board", font=(FONT_FAMILY, 20, "bold"),
+            toolbar, text="Tableau des tâches NEMESIS", font=(FONT_FAMILY, 20, "bold"),
             text_color=ACCENT_COLOR,
         )
         title.pack(side="left")
@@ -249,7 +249,7 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             width=120, height=30, command=lambda _: self.refresh(),
         )
         self._owner_menu.pack(side="right", padx=(8, 0))
-        ctk.CTkLabel(toolbar, text="Agente:", font=FONT_SMALL, text_color=TEXT_DIM).pack(side="right")
+        ctk.CTkLabel(toolbar, text="Agent :", font=FONT_SMALL, text_color=TEXT_DIM).pack(side="right")
 
         # Phase filter
         self.phase_var = ctk.StringVar(value="Todas")
@@ -265,11 +265,11 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             width=160, height=30, command=lambda _: self.refresh(),
         )
         self._phase_menu.pack(side="right", padx=(8, 0))
-        ctk.CTkLabel(toolbar, text="Fase:", font=FONT_SMALL, text_color=TEXT_DIM).pack(side="right")
+        ctk.CTkLabel(toolbar, text="Phase :", font=FONT_SMALL, text_color=TEXT_DIM).pack(side="right")
 
         # Refresh button
         self.refresh_btn = ctk.CTkButton(
-            toolbar, text="Refrescar", font=FONT_BOLD,
+            toolbar, text="Actualiser", font=FONT_BOLD,
             fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER,
             text_color=BG_COLOR, corner_radius=10, height=34,
             command=self.refresh,
@@ -293,7 +293,7 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
             self._agent_labels[agent] = lbl
 
         self._total_label = ctk.CTkLabel(
-            summary, text="Total: 0", font=FONT_SMALL, text_color=TEXT_DIM,
+            summary, text="Total : 0", font=FONT_SMALL, text_color=TEXT_DIM,
         )
         self._total_label.pack(side="right")
 
@@ -306,9 +306,9 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         cols_frame.grid_rowconfigure(0, weight=1)
 
         self._columns_container = cols_frame
-        self._create_column(cols_frame, 0, "Pendiente", PENDING_COLOR, "pending")
-        self._create_column(cols_frame, 1, "En Progreso", ACCENT_COLOR, "in_progress")
-        self._create_column(cols_frame, 2, "Completadas", SUCCESS_COLOR, "completed")
+        self._create_column(cols_frame, 0, "En attente", PENDING_COLOR, "pending")
+        self._create_column(cols_frame, 1, "En cours", ACCENT_COLOR, "in_progress")
+        self._create_column(cols_frame, 2, "Terminées", SUCCESS_COLOR, "completed")
 
     def _create_column(self, parent, col: int, title: str, color: str, status_key: str) -> None:
         container = ctk.CTkFrame(parent, fg_color=BG_COLOR, corner_radius=0)
@@ -414,8 +414,8 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
         total = len(filtered)
         done = counts.get("completed", 0)
         pct = int((done / total) * 100) if total else 0
-        self._total_label.configure(text=f"Total: {total} | {pct}% done")
-        self.refresh_btn.configure(text="Refrescar")
+        self._total_label.configure(text=f"Total : {total} | {pct}% terminé")
+        self.refresh_btn.configure(text="Actualiser")
 
         # Update last mtime
         try:
@@ -491,7 +491,7 @@ class TasksView(ctk.CTkFrame if HAS_CTK else ctk.Frame):
 
 if __name__ == "__main__":
     root = ctk.CTk()
-    root.title("Dulus Tasks v2")
+    root.title("NEMESIS — Tâches v2")
     root.geometry("1200x750")
     root.configure(fg_color=BG_COLOR)
     tv = TasksView(root)

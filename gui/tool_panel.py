@@ -24,7 +24,7 @@ class ToolPanel(ctk.CTkFrame):
 
         self.header = ctk.CTkLabel(
             self,
-            text="🔧 Tools",
+            text="🔧 Outils",
             font=(FONT_FAMILY, 14, "bold"),
             text_color=THEME["accent"],
         )

@@ -65,10 +65,10 @@ FONT_LOGO = _FONT_LOGO
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Quality Monitor — tracks health metrics and computes a 0-100 score
+#  Qualité Monitor — tracks health metrics and computes a 0-100 score
 # ═══════════════════════════════════════════════════════════════════════════
 
-class QualityMonitor:
+class QualitéMonitor:
     """Monitors backend health and computes an overall quality score (0-100)."""
 
     # Weight factors
@@ -353,7 +353,7 @@ class WebappLoader(ctk.CTkFrame):
 
         # Go button
         self.go_btn = ctk.CTkButton(
-            self.nav_frame, text="Ir", font=(FONT_FAMILY, 11, "bold"),
+            self.nav_frame, text="Ouvrir", font=(FONT_FAMILY, 11, "bold"),
             width=40, height=28, fg_color=ACCENT_COLOR,
             hover_color=ACCENT_HOVER, text_color=BG_COLOR,
             corner_radius=6, command=self._nav_go,
@@ -385,7 +385,7 @@ class WebappLoader(ctk.CTkFrame):
         self._placeholder = ctk.CTkLabel(
             self.content_frame,
             text=(
-                "🌐  Dulus Web Dashboard\n\n"
+                "🌐  Tableau de bord NEMESIS\n\n"
                 "Ingresa una URL y pulsa Ir — se abrirá en tu navegador.\n"
                 "Atajos comunes:\n"
                 "  http://127.0.0.1:5000/         (webchat)\n"
@@ -472,7 +472,7 @@ class WebappLoader(ctk.CTkFrame):
             )
         except Exception as e:
             self._placeholder.configure(
-                text=f"❌  No pude abrir el navegador:\n{e}\n\nURL: {url}",
+                text=f"❌  Impossible d’ouvrir le navigateur:\n{e}\n\nURL: {url}",
                 text_color="#ff5555",
             )
 
@@ -509,7 +509,7 @@ class WebappLoader(ctk.CTkFrame):
         try:
             self._placeholder.grid()
             self._placeholder.configure(
-                text=f"⏳  Iniciando vista embebida…\n\n{url}",
+                text=f"⏳  Démarrage de la vue intégrée…\n\n{url}",
                 text_color=TEXT_DIM,
             )
         except Exception:
@@ -534,7 +534,7 @@ class WebappLoader(ctk.CTkFrame):
                 try:
                     self._placeholder.grid()
                     self._placeholder.configure(
-                        text=f"❌  Embed falló:\n\n{msg}",
+                        text=f"❌  La vue intégrée a échoué:\n\n{msg}",
                         text_color="#ff5555",
                     )
                 except Exception:
@@ -572,7 +572,7 @@ class WebappLoader(ctk.CTkFrame):
             )
             self._embed_proc = proc
         except Exception as e:
-            _surface_error(f"No pude spawn-ear el subprocess de pywebview:\n{type(e).__name__}: {e}")
+            _surface_error(f"Impossible de démarrer le sous-processus pywebview:\n{type(e).__name__}: {e}")
             return False
 
         def _reparent_loop():
@@ -605,7 +605,7 @@ class WebappLoader(ctk.CTkFrame):
             if not child:
                 _surface_error(
                     "pywebview no creó ninguna ventana visible en 10s.\n"
-                    "Posible causa: Edge WebView2 Runtime no instalado.\n"
+                    "Cause possible : Edge WebView2 Runtime no instalado.\n"
                     "Bájalo de: https://developer.microsoft.com/microsoft-edge/webview2/"
                 )
                 return
@@ -616,7 +616,7 @@ class WebappLoader(ctk.CTkFrame):
                 user32.SetWindowLongW(child, GWL_STYLE, new_style)
                 if user32.SetParent(child, parent_hwnd) == 0:
                     err_code = _ctypes.windll.kernel32.GetLastError()
-                    _surface_error(f"SetParent falló (err={err_code}). HWND={child:#x}")
+                    _surface_error(f"SetParent a échoué (err={err_code}). HWND={child:#x}")
                     return
                 ww = max(100, self.content_frame.winfo_width())
                 hh = max(100, self.content_frame.winfo_height())
@@ -749,9 +749,9 @@ class WebappLoader(ctk.CTkFrame):
             if srv is None or not srv.available:
                 self._placeholder.configure(
                     text=(
-                        "❌  No encontré el bundle del sandbox en disco "
+                        "❌  Bundle Sandbox introuvable sur le disque "
                         "y :5000 no responde.\n\n"
-                        "Arranca /webchat o reinstala Dulus."
+                        "Lance /webchat ou réinstalle NEMESIS."
                     ),
                     text_color="#ff5555",
                 )
@@ -759,7 +759,7 @@ class WebappLoader(ctk.CTkFrame):
             url = srv.start()
             if not url:
                 self._placeholder.configure(
-                    text="❌  No pude arrancar el server local del sandbox.",
+                    text="❌  Impossible de démarrer le serveur local.",
                     text_color="#ff5555",
                 )
                 return
@@ -796,9 +796,9 @@ class DulusMainWindow(ctk.CTk):
         super().__init__()
 
         # ── Window setup ─────────────────────────────────────────────────────
-        self.title("Dulus")
-        self.geometry("1100x750")
-        self.minsize(900, 600)
+        self.title("NEMESIS — L’aigle de la justice")
+        self.geometry("1280x820")
+        self.minsize(1050, 680)
         self.configure(fg_color=BG_COLOR)
 
         # Theme
@@ -810,8 +810,8 @@ class DulusMainWindow(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Quality monitor
-        self.quality = QualityMonitor()
+        # Qualité monitor
+        self.quality = QualitéMonitor()
         self._quality_tooltip: tk.Toplevel | None = None
 
         # Sandbox server: a tiny localhost HTTP server bound to a random
@@ -827,6 +827,7 @@ class DulusMainWindow(ctk.CTk):
         self.on_model_change: Callable[[str], None] = lambda model: None
         self.on_voice_toggle: Callable[[], None] = lambda: None
         self.on_attach: Callable[[], None] = lambda: None
+        self.on_stop: Callable[[], None] = lambda: None
         self.on_session_select: Callable[[str], None] = lambda sid: None
 
         # ── Build UI ─────────────────────────────────────────────────────────
@@ -844,6 +845,12 @@ class DulusMainWindow(ctk.CTk):
 
         # Start periodic quality update
         self._schedule_quality_update()
+
+        # Accessibility and productivity shortcuts.
+        self.bind_all("<Control-Return>", lambda _e: self._on_send_click())
+        self.bind_all("<Escape>", lambda _e: self._on_stop_click())
+        self.bind_all("<Control-l>", lambda _e: self.focus_input())
+        self.bind_all("<Control-n>", lambda _e: self._on_new_chat_click())
 
     # ═══════════════════════════════════════════════════════════════════════
     #  Sidebar
@@ -886,7 +893,7 @@ class DulusMainWindow(ctk.CTk):
         # Model selector
         self.model_label = ctk.CTkLabel(
             self.topbar,
-            text="Modelo:",
+            text="Modèle :",
             font=FONT_SMALL,
             text_color=TEXT_DIM,
         )
@@ -903,8 +910,8 @@ class DulusMainWindow(ctk.CTk):
             text_color=TEXT_COLOR,
             dropdown_text_color=TEXT_COLOR,
             dropdown_fg_color=CARD_COLOR,
-            corner_radius=8,
-            width=180,
+            corner_radius=10,
+            width=250,
             command=self._on_model_change,
         )
         self.model_selector.grid(row=0, column=1, sticky="w", pady=10)
@@ -913,7 +920,7 @@ class DulusMainWindow(ctk.CTk):
         # Tasks toggle button
         self.tasks_btn = ctk.CTkButton(
             self.topbar,
-            text="🗂️  Tareas",
+            text="▦  Tâches",
             font=FONT_BOLD,
             fg_color="transparent",
             hover_color=BORDER_COLOR,
@@ -926,7 +933,7 @@ class DulusMainWindow(ctk.CTk):
         )
         self.tasks_btn.grid(row=0, column=2, sticky="e", padx=(0, 8), pady=10)
 
-        # ── Quality score indicator ──────────────────────────────────────────
+        # ── Qualité score indicator ──────────────────────────────────────────
         self.quality_frame = ctk.CTkFrame(self.topbar, fg_color="transparent")
         self.quality_frame.grid(row=0, column=3, sticky="e", padx=(8, 4), pady=10)
 
@@ -934,10 +941,10 @@ class DulusMainWindow(ctk.CTk):
         self.quality_circle.pack(side="left", padx=(0, 6))
         self.quality_circle.set_score(0, TEXT_DIM)
 
-        # Quality label (clickable for tooltip)
+        # Qualité label (clickable for tooltip)
         self.quality_label_btn = ctk.CTkButton(
             self.quality_frame,
-            text="Quality",
+            text="Qualité",
             font=(FONT_FAMILY, 10),
             fg_color="transparent",
             hover_color=BORDER_COLOR,
@@ -969,7 +976,7 @@ class DulusMainWindow(ctk.CTk):
 
         self.status_label = ctk.CTkLabel(
             self.status_frame,
-            text="Listo",
+            text="Prêt",
             font=FONT_SMALL,
             text_color=TEXT_DIM,
         )
@@ -996,7 +1003,7 @@ class DulusMainWindow(ctk.CTk):
         # ── Webapp toggle button ─────────────────────────────────────────────
         self.webapp_btn = ctk.CTkButton(
             self.topbar,
-            text="🌐  Web",
+            text="◎  Web",
             font=FONT_BOLD,
             fg_color="transparent",
             hover_color=BORDER_COLOR,
@@ -1045,7 +1052,7 @@ class DulusMainWindow(ctk.CTk):
         # Attachment button
         self.attach_btn = ctk.CTkButton(
             self.input_frame,
-            text="📎",
+            text="↥",
             font=(FONT_FAMILY, 16),
             width=36,
             height=36,
@@ -1076,7 +1083,7 @@ class DulusMainWindow(ctk.CTk):
         # Voice button
         self.voice_btn = ctk.CTkButton(
             self.input_frame,
-            text="🎙",
+            text="◉",
             font=(FONT_FAMILY, 16),
             width=36,
             height=36,
@@ -1087,6 +1094,15 @@ class DulusMainWindow(ctk.CTk):
             command=self._on_voice_click,
         )
         self.voice_btn.grid(row=0, column=2, padx=4, pady=10)
+
+        # Stop generation button (hidden until a provider is streaming)
+        self.stop_btn = ctk.CTkButton(
+            self.input_frame, text="■  Arrêter", font=FONT_SMALL, width=78, height=36,
+            fg_color="#3a1720", hover_color="#6b2534", text_color="#fb7185",
+            corner_radius=10, command=self._on_stop_click,
+        )
+        self.stop_btn.grid(row=0, column=3, padx=4, pady=10)
+        self.stop_btn.grid_remove()
 
         # Send button
         self.send_btn = ctk.CTkButton(
@@ -1101,10 +1117,10 @@ class DulusMainWindow(ctk.CTk):
             corner_radius=12,
             command=self._on_send_click,
         )
-        self.send_btn.grid(row=0, column=3, padx=(4, 10), pady=10)
+        self.send_btn.grid(row=0, column=4, padx=(4, 10), pady=10)
 
     # ═══════════════════════════════════════════════════════════════════════
-    #  Quality Score & Status
+    #  Qualité Score & Status
     # ═══════════════════════════════════════════════════════════════════════
 
     def _schedule_quality_update(self) -> None:
@@ -1140,7 +1156,7 @@ class DulusMainWindow(ctk.CTk):
         # Update error badge
         err_count = result["error_count"]
         if err_count > 0:
-            self.error_badge.configure(text=f"⚠ {err_count} errs")
+            self.error_badge.configure(text=f"⚠ {err_count} erreurs")
         else:
             self.error_badge.configure(text="")
 
@@ -1195,7 +1211,7 @@ class DulusMainWindow(ctk.CTk):
         # Title
         ctk.CTkLabel(
             frame,
-            text=f"📊 Quality Score: {result['total']}/100",
+            text=f"📊 Qualité Score: {result['total']}/100",
             font=(FONT_FAMILY, 12, "bold"),
             text_color=get_quality_color(result['total']),
         ).pack(padx=12, pady=(10, 4))
@@ -1203,7 +1219,7 @@ class DulusMainWindow(ctk.CTk):
         # Breakdown rows
         items = [
             ("🔗  Conexión", result['connection'], 30),
-            ("🤖  Modelo", result['model'], 30),
+            ("🤖  Modèle", result['model'], 30),
             ("⏱️  Tiempo resp.", result['response_time'], 20),
             ("⚡  Features", result['features'], 20),
         ]
@@ -1218,7 +1234,7 @@ class DulusMainWindow(ctk.CTk):
             ctk.CTkLabel(row, text=f"{val}", font=(FONT_FAMILY, 10, "bold"), text_color=TEXT_COLOR, width=28).pack(side="right")
 
         # Extra info
-        info_text = f"Modelo: {result['model_name'] or 'N/A'}  |  Errores: {result['error_count']}"
+        info_text = f"Modèle : {result['model_name'] or 'N/A'}  |  Erreurs : {result['error_count']}"
         ctk.CTkLabel(
             frame,
             text=info_text,
@@ -1240,6 +1256,11 @@ class DulusMainWindow(ctk.CTk):
     # ═══════════════════════════════════════════════════════════════════════
     #  Event handlers
     # ═══════════════════════════════════════════════════════════════════════
+
+    def _on_stop_click(self) -> None:
+        self.on_stop()
+        self.hide_thinking()
+        self.set_status("Génération arrêtée", "#fb7185")
 
     def _on_send_click(self) -> None:
         text = self.input_box.get("1.0", "end-1c").strip()
@@ -1299,7 +1320,7 @@ class DulusMainWindow(ctk.CTk):
         self.chat.grid()
         self.input_frame.grid()
         self.tasks_btn.configure(
-            text="🗂️  Tareas",
+            text="▦  Tâches",
             fg_color="transparent",
             hover_color=BORDER_COLOR,
             text_color=TEXT_DIM,
@@ -1322,7 +1343,7 @@ class DulusMainWindow(ctk.CTk):
         open to a possibly-dead localhost URL (the webchat server isn't
         guaranteed to be running). The user picks an action explicitly:
         click "🦅 Sandbox" to embed the offline sandbox, or type a URL
-        and hit "Ir" to embed it. Either way the rendering happens
+        and hit "Ouvrir" to embed it. Either way the rendering happens
         inside the frame via pywebview.
         """
         self._hide_all_views()
@@ -1345,7 +1366,7 @@ class DulusMainWindow(ctk.CTk):
 
         # Reset all toggle button styles
         self.tasks_btn.configure(
-            text="🗂️  Tareas",
+            text="▦  Tâches",
             fg_color="transparent",
             hover_color=BORDER_COLOR,
             text_color=TEXT_DIM,
@@ -1353,7 +1374,7 @@ class DulusMainWindow(ctk.CTk):
             border_color=BORDER_COLOR,
         )
         self.webapp_btn.configure(
-            text="🌐  Web",
+            text="◎  Web",
             fg_color="transparent",
             hover_color=BORDER_COLOR,
             text_color=TEXT_DIM,
@@ -1372,7 +1393,7 @@ class DulusMainWindow(ctk.CTk):
         """Update the status label and dot color."""
         self.status_label.configure(text=text, text_color=color)
         # Also update dot color based on status
-        if "Listo" in text or "listo" in text.lower():
+        if "Prêt" in text or "listo" in text.lower():
             self.status_dot_canvas.itemconfigure(self._status_dot_id, fill="#4caf50")
             self.quality.set_connected(True)
         elif "Error" in text or "error" in text.lower() or "Fatal" in text:
@@ -1403,20 +1424,24 @@ class DulusMainWindow(ctk.CTk):
     def show_thinking(self) -> None:
         """Show assistant thinking indicator."""
         self.chat.show_thinking()
-        self.set_status("Pensando…", ACCENT_COLOR)
+        self.stop_btn.grid()
+        self.send_btn.grid_remove()
+        self.set_status("Réflexion…", ACCENT_COLOR)
 
     def hide_thinking(self) -> None:
         """Hide thinking indicator."""
         self.chat.hide_thinking()
-        self.set_status("Listo", "#4caf50")
+        self.stop_btn.grid_remove()
+        self.send_btn.grid()
+        self.set_status("Prêt", "#4caf50")
 
     def add_assistant_chunk(self, text: str) -> None:
         """Append streaming text to the current assistant message."""
         self.chat.append_to_last_message(text)
 
-    def add_tool_call(self, name: str, status: str = "running") -> None:
+    def add_tool_call(self, name: str, status: str = "running", details: str = "") -> None:
         """Show a tool execution pill."""
-        self.chat.add_tool_indicator(name, status)
+        self.chat.add_tool_indicator(name, status, details)
 
     def focus_input(self) -> None:
         """Move focus to the input box."""

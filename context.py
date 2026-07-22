@@ -13,18 +13,16 @@ import subprocess
 from pathlib import Path
 
 SYSTEM_PROMPT_TEMPLATE = """\
-You are Dulus, an AI coding agent. Think in English; reply to {user_name} in {reply_language}.
-# Identity: Your name is Dulus. Do NOT proactively declare this — only if the user asks "quién eres" or "qué modelo eres".
-# Forbidden: Do NOT claim to be Qwen, Llama, GPT, Claude, Gemini, DeepSeek, or any underlying model. Do NOT mention Ollama or your runtime stack.
-# Env: {cwd} | {platform} | auto_show={auto_show}
-# Autonomy: Background scripts (nohup/&) allowed | Never refuse monitoring/long tasks | Always wait for tool results before replying
-# Tools: SearchLastOutput → for [TRUNCATED] | WebFetch/WebSearch → web | TmuxOffload → tasks > 5s | ReadJob → background results
-# Reminder: ONLY for user-facing reminders/notifications (e.g. "remind me in 10min"). NEVER use it to wait between your own tool calls — the countdown is deferred until your turn ends but you should still pause inside a command sequence using `sleep N` INSIDE the Bash command itself (e.g. Bash('cmd1 && sleep 2 && cmd2')).
-# Long-running tools: any tool whose `description` ends in `[long-running — wrap in TmuxOffload]` MUST be invoked via TmuxOffload (not directly), so the REPL stays responsive while it runs.
-# Multi-agent: Agent(subagent_type=...) | isolation="worktree" runs parallel | wait=false + name=... for fire-and-forget
-# Rules: Edit > Write | Use absolute paths + line numbers | Surface errors immediately, do not retry blindly
-# Input: "🎙 Transcribed:" prefix = voice input — tolerate typos/misspellings
-# REPL: /help /batch /auto_show /verbose /soul /memory /schema /thinking /config
+Tu es NEMESIS, un agent de développement logiciel. Réfléchis en anglais si nécessaire, mais réponds à {user_name} en {reply_language}.
+# Identité : ton nom est NEMESIS, l'aigle de la justice. Si l'utilisateur demande ton nom ou te demande de te présenter, réponds NEMESIS.
+# Interdit : ne prétends pas être Qwen, Llama, GPT, Claude, Gemini, DeepSeek ou un autre modèle sous-jacent. Ne révèle pas la technologie d'exécution.
+# Environnement : {cwd} | système : {platform} | affichage automatique : {auto_show}
+# Autonomie : tu peux lancer des tâches longues en arrière-plan. Attends toujours les résultats des outils avant de répondre.
+# Outils : SearchLastOutput sert à retrouver une sortie tronquée ; WebFetch et WebSearch servent au Web ; TmuxOffload sert aux tâches longues ; ReadJob sert aux résultats différés.
+# Règles : privilégie Edit à Write quand c'est possible ; utilise des chemins absolus ; signale immédiatement les erreurs ; ne réessaie pas aveuglément.
+# Appels d'outils : utilise exactement le nom et le schéma de l'outil fourni. Après chaque résultat, poursuis la tâche ou réponds clairement.
+# Entrée vocale : le préfixe « 🎙 Transcribed: » peut contenir des fautes de transcription.
+# Langue : réponds toujours en {reply_language}, sauf demande explicite contraire.
 {platform_hints}{git_info}{dulus_md}"""
 
 _THINKING_LABELS = {1: "minimal", 2: "moderate", 3: "deep"}
@@ -165,15 +163,15 @@ def get_platform_hints(config: dict | None = None) -> str:
     skills_dir = dulus_home / "skills"
     if _plat.system() == "Windows":
         cmds = "Get-Content=cat,Select-String=grep,Get-ChildItem=ls" if shell_type=="powershell" else "type=cat,findstr=grep,dir=ls"
-        return f"# Shell:Windows({shell_type}) | {cmds} | Dulus:{dulus_home} | Skills:{skills_dir} | WARNING: Use Glob/Read tools instead of raw shell commands for path navigation to avoid Windows path errors."
-    return f"# Shell:Unix(cat,grep,ls,&&) | Dulus:{dulus_home} | Skills:{skills_dir}"
+        return f"# Shell:Windows({shell_type}) | {cmds} | NEMESIS_HOME:{dulus_home} | Skills:{skills_dir} | WARNING: Use Glob/Read tools instead of raw shell commands for path navigation to avoid Windows path errors."
+    return f"# Shell:Unix(cat,grep,ls,&&) | NEMESIS_HOME:{dulus_home} | Skills:{skills_dir}"
 
 
 def _build_ollama_system_prompt(config: dict | None = None) -> str:
     import platform
     auto_show = config.get("auto_show", True) if config else True
-    prompt = f"""你是Dulus，AI编程助手。
-# 身份: 你的名字是 Dulus。不需要主动向用户声明这一点，除非用户直接问你 "quién eres" 或 "qué modelo eres"。
+    prompt = f"""你是 NEMESIS，正义之鹰（Justice Eagle），一名 AI 编程助手。
+# 身份: 你的名字是 NEMESIS。不需要主动向用户声明这一点，除非用户直接问你 "quién eres" 或 "qué modelo eres"。
 # 禁止: 不要声称自己是 Qwen、Llama、GPT、Claude、Gemini、DeepSeek 或任何其他底层模型。不要提及 Ollama 或运行你的技术栈。
 Dir:{Path.cwd()} | Platform:{platform.system()} | auto_show={'ON' if auto_show else 'OFF'}
 # 规则: 读取工具结果后再响应 | >5s操作用TmuxOffload
@@ -200,7 +198,7 @@ def _normalize_thinking_level(config: dict | None) -> int:
 
 # ── Reply-language resolution ─────────────────────────────────────────────
 #
-# `config["lang"]` lets the user steer what language Dulus replies in
+# `config["lang"]` lets the user steer what language NEMESIS replies in
 # without touching the prompt template. Two kinds of values are accepted:
 #
 #   • ISO-639 (with optional region):   "en", "es", "es-DO", "zh", "zh-Hant",
@@ -268,6 +266,13 @@ def _resolve_reply_language(config: dict | None) -> str:
     return raw
 
 
+def _brand_prompt_context(text: str) -> str:
+    """Keep injected project notes from overriding the NEMESIS identity."""
+    return (text.replace("DULUS", "NEMESIS")
+                .replace("Dulus", "NEMESIS")
+                .replace("dulus", "NEMESIS"))
+
+
 def build_system_prompt(config: dict | None = None) -> str:
     import platform
     model_lower = (config.get("model", "") if config else "").lower()
@@ -293,7 +298,7 @@ def build_system_prompt(config: dict | None = None) -> str:
         reply_language=reply_language,
         platform_hints="" if lite else get_platform_hints(config),
         git_info="" if lite else get_git_info(config),
-        dulus_md="" if lite else get_dulus_md(),
+        dulus_md="" if lite else _brand_prompt_context(get_dulus_md()),
     )
 
     if lite:
@@ -311,7 +316,7 @@ def build_system_prompt(config: dict | None = None) -> str:
         "\n# Batch: /batch list|status|fetch (suggest when 3+ similar tasks) | "
         # Both `dulus` (when pip-installed) and `python dulus.py` work — the
         # entry-point shim is registered in pyproject.toml [project.scripts].
-        'In agents: Bash(\'dulus -c "batch status|fetch ID"\')'
+        'Dans les agents : utiliser Bash avec la commande locale de tâches.'
     )
 
     thk_label = _THINKING_LABELS.get(_normalize_thinking_level(config))
@@ -323,8 +328,7 @@ def build_system_prompt(config: dict | None = None) -> str:
 
     # Hint: pip-installed users can run `dulus` directly (no .py path).
     prompt += (
-        "\n# CLI: 'dulus' command works after `pip install dulus` — "
-        "no need for `python dulus.py`. Same flags: --print, --accept-all, -c, etc."
+        "\n# CLI : l'agent peut exécuter les commandes locales avec --print, --accept-all ou -c."
     )
 
     # Skills proactivity hint — make the agent reach for skills instead of
@@ -340,13 +344,11 @@ def build_system_prompt(config: dict | None = None) -> str:
                 "source\\tid\\tdescription). Before writing custom code or "
                 "saying 'I can't do that', Grep this file for the topic — "
                 "there's often an awesome/composio/local skill that fits. "
-                "Install with `dulus -c \"skill get <id>\"`. Refresh the "
-                "dump anytime with `dulus -c \"skill list dump\"`."
+                "Installe les skills avec la commande locale appropriée. Actualise le catalogue si nécessaire."
             )
         else:
             prompt += (
-                "\n# Skills tip: run `dulus -c \"skill list dump\"` once "
-                "to write ~/.dulus/skills_catalog.txt — then Grep it for any "
+                "\n# Conseil skills : génère le catalogue local si nécessaire, puis utilise Grep pour trouver un skill. "
                 "topic you don't have a tool for, before writing custom code."
             )
     except Exception:
@@ -354,7 +356,7 @@ def build_system_prompt(config: dict | None = None) -> str:
 
     project_mem = get_project_memory_index()
     if project_mem:
-        prompt += project_mem
+        prompt += _brand_prompt_context(project_mem)
 
     # ── Reply-language HARD OVERRIDE ──────────────────────────────────────────
     # The soul (soul.md) and gold memories are injected as conversation messages

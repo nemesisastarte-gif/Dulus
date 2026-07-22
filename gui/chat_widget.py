@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import tkinter as tk
+import webbrowser
 from datetime import datetime
 from typing import Callable
 
@@ -91,7 +92,7 @@ class ChatWidget(ctk.CTkFrame):
         )
         self._thinking_label = ctk.CTkLabel(
             self._thinking_frame,
-            text="🌀  Dulus ta pensando…",
+            text="🌀  NEMESIS réfléchit…",
             font=FONT_NORMAL,
             text_color=ACCENT_COLOR,
         )
@@ -145,38 +146,45 @@ class ChatWidget(ctk.CTkFrame):
         widget.configure(state="disabled")
         self._scroll_to_bottom()
 
-    def add_tool_indicator(self, name: str, status: str = "running") -> None:
-        """Add a small inline pill showing a tool execution."""
+    def add_tool_indicator(self, name: str, status: str = "running", details: str = "") -> None:
+        """Show a collapsible tool card with status, details and result."""
         self._hide_thinking()
-
-        pill = ctk.CTkFrame(
+        running = status == "running"
+        card = ctk.CTkFrame(
             self._container,
-            fg_color=CODE_BG if status == "running" else "#1b3a1b",
-            corner_radius=8,
+            fg_color=CODE_BG if running else "#10261b",
+            corner_radius=10,
             border_width=1,
-            border_color=ACCENT_COLOR if status == "running" else "#4caf50",
+            border_color=ACCENT_COLOR if running else "#4ade80",
         )
-        icon = "⚙" if status == "running" else "✓"
-        lbl = ctk.CTkLabel(
-            pill,
-            text=f"{icon}  {name}",
-            font=FONT_SMALL,
-            text_color=ACCENT_COLOR if status == "running" else "#4caf50",
-        )
-        lbl.pack(padx=10, pady=4)
-
-        # Stack tools above the current assistant message bubble
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=8, pady=(5, 2))
+        icon = "◌" if running else "✓"
+        color = ACCENT_COLOR if running else "#4ade80"
+        title = ctk.CTkLabel(row, text=f"{icon}  {name}", font=FONT_SMALL, text_color=color)
+        title.pack(side="left")
+        toggle = ctk.CTkButton(row, text="＋", width=24, height=22, fg_color="transparent",
+                               hover_color=BORDER_COLOR, text_color=TEXT_DIM, corner_radius=6)
+        toggle.pack(side="right")
+        body = ctk.CTkLabel(card, text=details or "", justify="left", anchor="w",
+                            font=(FONT_FAMILY, 10), text_color=TEXT_DIM, wraplength=720)
+        expanded = bool(details)
+        if expanded:
+            body.pack(fill="x", padx=12, pady=(0, 7))
+            toggle.configure(text="−")
+        def flip():
+            nonlocal expanded
+            expanded = not expanded
+            if expanded:
+                body.pack(fill="x", padx=12, pady=(0, 7)); toggle.configure(text="−")
+            else:
+                body.pack_forget(); toggle.configure(text="＋")
+        toggle.configure(command=flip)
         if self._current_bubble_outer is not None:
-            pill.pack(
-                before=self._current_bubble_outer,
-                anchor="w",
-                padx=20,
-                pady=(2, 4),
-            )
+            card.pack(before=self._current_bubble_outer, anchor="w", padx=20, pady=(2, 4))
         else:
-            pill.pack(anchor="w", padx=20, pady=(2, 4))
-
-        self._message_frames.append(pill)
+            card.pack(anchor="w", padx=20, pady=(2, 4))
+        self._message_frames.append(card)
         self._scroll_to_bottom()
 
     def show_thinking(self) -> None:
@@ -385,6 +393,9 @@ class ChatWidget(ctk.CTkFrame):
             txt.tag_config("code", foreground=TAG_CODE_COLOR)
             txt.tag_config("code_block", foreground=TAG_CODE_COLOR)
             txt.tag_config("italic", foreground=TAG_ITALIC_COLOR)
+            txt.tag_config("heading", foreground=ACCENT_COLOR)
+            txt.tag_config("link", foreground=ACCENT_COLOR, underline=True)
+            txt.tag_bind("link", "<Button-1>", lambda e: webbrowser.open(e.widget.tag_cget("link", "url") if False else "https://www.google.com"))
         except Exception:
             # Fallback: tags unsupported, render plain text
             txt.insert("end", text)
@@ -414,23 +425,49 @@ class ChatWidget(ctk.CTkFrame):
             idx += 1
 
     def _insert_code_block(self, txt: ctk.CTkTextbox, code: str, lang: str = "") -> None:
-        """Insert a code block with a dark background and copy button."""
-        # Code block frame (we use text widget bg color simulation via tag)
+        """Insert a code block with real Copy and Save actions."""
         txt.insert("end", "\n")
-
         if lang:
             txt.insert("end", f"  {lang}\n", "code_block")
         txt.insert("end", code, "code_block")
         txt.insert("end", "\n")
-
-        # We can't easily add a real button inside CTkTextbox,
-        # so we append a small copy hint at the end of the block
-        txt.insert("end", "  [📋 copiar]\n", "code_block")
+        bar = tk.Frame(txt, bg=CODE_BG)
+        def copy_code():
+            try:
+                txt.clipboard_clear(); txt.clipboard_append(code); txt.update()
+            except Exception: pass
+        def save_code():
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(title="Enregistrer le code", defaultextension=".txt",
+                                                filetypes=[("Fichier texte", "*.txt"), ("Tous les fichiers", "*.*")])
+            if path:
+                try: Path(path).write_text(code, encoding="utf-8")
+                except Exception: pass
+        tk.Button(bar, text="Copier", command=copy_code, relief="flat", bg=CODE_BG,
+                  fg=TEXT_DIM, activebackground=ACCENT_COLOR, activeforeground=BG_COLOR).pack(side="left", padx=2)
+        tk.Button(bar, text="Enregistrer", command=save_code, relief="flat", bg=CODE_BG,
+                  fg=TEXT_DIM, activebackground=ACCENT_COLOR, activeforeground=BG_COLOR).pack(side="left", padx=2)
+        try: txt.window_create("end", window=bar)
+        except Exception: pass
+        txt.insert("end", "\n")
 
     def _insert_inline_formatted(self, txt: ctk.CTkTextbox, text: str) -> None:
         """Process inline bold, italic, and inline code within a text segment."""
-        # Pattern order: bold **text**, italic *text*, inline `code`
-        pattern = re.compile(r"(\*\*.*?\*\*|\*.*?\*|`.+?`)")
+        # Headings and bullet lines get a visual hierarchy.
+        lines = text.splitlines(True)
+        if len(lines) > 1:
+            for line in lines:
+                stripped = line.lstrip()
+                if stripped.startswith("#"):
+                    txt.insert("end", line, "heading")
+                elif stripped.startswith(("- ", "* ", "• ")):
+                    txt.insert("end", "  • " + stripped[2:])
+                else:
+                    self._insert_inline_formatted(txt, line.rstrip("\n"))
+                    if line.endswith("\n"): txt.insert("end", "\n")
+            return
+        # Pattern order: bold **text**, italic *text*, inline `code`, links [title](url)
+        pattern = re.compile(r"(\*\*.*?\*\*|\*.*?\*|`.+?`|\[[^\]]+\]\(https?://[^)]+\))")
         pos = 0
         for m in pattern.finditer(text):
             # Text before match
@@ -443,6 +480,16 @@ class ChatWidget(ctk.CTkFrame):
                 txt.insert("end", token[1:-1], "italic")
             elif token.startswith("`") and token.endswith("`"):
                 txt.insert("end", token[1:-1], "code")
+            elif token.startswith("[") and "](" in token:
+                label, url = token[1:].split("](", 1)
+                url = url.rstrip(")")
+                start_index = txt.index("end")
+                txt.insert("end", label, "link")
+                # Bind this specific range to the URL.
+                tag = f"link_{start_index.replace('.', '_')}"
+                txt.tag_add(tag, start_index, "end-1c")
+                txt.tag_config(tag, foreground=ACCENT_COLOR, underline=True)
+                txt.tag_bind(tag, "<Button-1>", lambda e, u=url: webbrowser.open(u))
             pos = m.end()
         if pos < len(text):
             txt.insert("end", text[pos:])
