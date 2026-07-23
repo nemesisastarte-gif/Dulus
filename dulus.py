@@ -3405,6 +3405,7 @@ def cmd_harvest_gemini(_args: str, _state, config) -> bool:
             pass
 
         config["model"] = "gemini-web/gemini-flash"
+        config["gemini_web_auth_path"] = str(out_path)
         config["_gemini_web_fresh_session"] = True
         from config import save_config
         save_config(config)
@@ -3578,6 +3579,7 @@ def cmd_harvest_deepseek(_args: str, _state, config) -> bool:
             ok(f"Session synced → {captured_session_id[0]}")
 
         config["model"] = "deepseek-web/deepseek-v3"
+        config["deepseek_web_auth_path"] = str(out_path)
         from config import save_config
         save_config(config)
         ok(f"Harvested DeepSeek tokens → {out_path}")
@@ -3738,6 +3740,7 @@ def cmd_harvest_qwen(_args: str, _state, config) -> bool:
         save_config(config)
 
         config["model"] = "qwen-web/qwen3.6-plus"
+        config["qwen_web_auth_path"] = str(out_path)
         config["_qwen_web_fresh_session"] = True
         from config import save_config
         save_config(config)
@@ -12867,8 +12870,25 @@ def main():
         print(f"(welcome wizard skipped: {_e})")
 
     config = load_config()
+    # A temporary/local bundle may carry harvested web sessions for testing.
+    # Never use this path for API keys; only the explicitly bundled web auth
+    # files are selected, and only when they are present in the executable.
+    _bundle_root = None
+    if getattr(sys, "frozen", False):
+        import pathlib as _pathlib
+        _candidate = _pathlib.Path(getattr(sys, "_MEIPASS", "")) / "harvest"
+        if _candidate.is_dir():
+            _bundle_root = _candidate
+    if _bundle_root:
+        if (_bundle_root / "gemini_web.json").exists():
+            config["gemini_web_auth_path"] = str(_bundle_root / "gemini_web.json")
+            config["model"] = "gemini-web/gemini-flash"
+        elif (_bundle_root / "qwen_web.json").exists():
+            config["qwen_web_auth_path"] = str(_bundle_root / "qwen_web.json")
+            config["model"] = "qwen-web/qwen3.7-plus"
+
     # A Debian bundle is immutable; never try to pip-upgrade it in place.
-    if os.environ.get("NEMESIS_PACKAGED"):
+    if os.environ.get("NEMESIS_PACKAGED") or _bundle_root:
         config["auto_update"] = False
         config["auto_update_install"] = False
 

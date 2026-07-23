@@ -1042,7 +1042,12 @@ def _web_auth_path(config: dict, key: str, filename: str) -> str:
     back to `~/.dulus/<filename>`.
     """
     import pathlib
-    return config.get(key) or str(pathlib.Path.home() / ".dulus" / filename)
+    configured = config.get(key)
+    # A frozen temporary bundle may point at a removed _MEIPASS file after a
+    # fresh harvest. Fall back to the user's newly captured auth file.
+    if configured and pathlib.Path(configured).exists():
+        return configured
+    return str(pathlib.Path.home() / ".dulus" / filename)
 
 
 def _kimi_web_list_chats(auth_data: dict, page_size: int = 50,
