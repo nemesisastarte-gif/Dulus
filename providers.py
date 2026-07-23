@@ -3346,7 +3346,12 @@ def stream_qwen_web(
     # + tool results — re-sending the system prompt and tool manifest every
     # turn wastes 1-2K tokens per call.
     is_first_turn = not parent_id
-    manifest = _format_web_tool_manifest(tool_schemas, config, messages) if is_first_turn else ""
+    # Qwen Web can lose the remote system context after a harvest or
+    # restart. Always send the compact tool contract so a new process/thread
+    # cannot answer "Tool X does not exist" merely because its parent_id is
+    # already set.
+    qwen_config = {**config, "always_inject_tools": True}
+    manifest = _format_web_tool_manifest(tool_schemas, qwen_config, messages)
     last_user_msg = _consolidate_web_history(messages, manifest)
     # Qwen Web also has no independent system-message channel. Keep the
     # system contract on continuation turns; otherwise the second request can
